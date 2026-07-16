@@ -1209,7 +1209,7 @@ $(document).ready(function() {
         const avatarId = `kick-avatar-chat-${msg.sender?.username}-${msgId}`;
         const kickMessage = `<div class="kick-message">
             <img id="${avatarId}" class="miniprofilepicture kick-avatar-img" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';" data-username="${msg.sender?.username}">
-            <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24"><path fill="#53FC18" d="M2.25 1.5h3.75v3h3v3h3v3.75h-3v3h-3v3h-3.75v-15.75Zm15.75 0h3.75v3h-3v-3Zm0 3.75h-3v3h3v-3Zm-3 3.75h-3v3h3v-3Zm3 3.75h-3v3h3v-3Zm0 3.75h3v3h-3v-3Z"/></svg>
+            <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;border-radius:2px;" viewBox="0 0 256 256"><path fill="#53fc18" d="M0 0h256v256H0z"/><path fill="#000" d="M86 44v34H61v112h25v34h34v-34h25v34h34v-34h-25v-34h25v-34h-25V85h-34V51h-34v27h-25V44H86z"/></svg>
             ${badgeHtml}
             <b style="color:${msg.sender?.color || getRandomColor(msg.sender?.username || '')} !important">${sanitize(msg.sender?.username || '')}:</b>
             <span>${messageHtml}</span>
@@ -1474,14 +1474,12 @@ function testKickFeatures() {
 // Global function to render Kick messages with emote replacement
 function renderKickMessage(content, emotes) {
     let rendered = sanitize(content);
-    // First, replace emotes from the message (channel-specific emotes)
-    if (emotes && emotes.length > 0) {
-        emotes.forEach(emote => {
-            const emoteTag = `<img src="${emote.url}" alt="${emote.name}" class="kick-emote" style="height:1.5em;vertical-align:middle;">`;
-            const regex = new RegExp(sanitize(emote.name), 'gi');
-            rendered = rendered.replace(regex, emoteTag);
-        });
-    }
+    
+    // Parse Kick's native emote format: [emote:1234:name]
+    rendered = rendered.replace(/\[emote:(\d+):([^\]]+)\]/gi, (match, id, name) => {
+        return `<img src="https://files.kick.com/emotes/${id}/fullsize" alt="${name}" class="kick-emote" title="${name}" style="height:1.5em;vertical-align:middle;">`;
+    });
+
     // Then, replace bolbal emotes from the global cache
     const sortedEmoteCodes = Object.keys(kickBolbalEmotes).sort((a, b) => b.length - a.length);
     sortedEmoteCodes.forEach(code => {
