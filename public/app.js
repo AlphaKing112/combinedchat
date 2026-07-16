@@ -1480,24 +1480,13 @@ function renderKickMessage(content, emotes) {
         return `<img src="https://files.kick.com/emotes/${id}/fullsize" alt="${name}" class="kick-emote" title="${name}" style="height:1.5em;vertical-align:middle;">`;
     });
 
-    // Then, replace bolbal emotes from the global cache, but ONLY outside of HTML tags
+    // Then, replace bolbal emotes from the global cache
     const sortedEmoteCodes = Object.keys(kickBolbalEmotes).sort((a, b) => b.length - a.length);
-    
-    // Split by HTML tags so we don't accidentally replace text inside alt="..." or title="..."
-    let parts = rendered.split(/(<[^>]*>)/);
-    for (let i = 0; i < parts.length; i++) {
-        if (i % 2 === 0) { // Even indices are pure text outside HTML tags
-            let text = parts[i];
-            sortedEmoteCodes.forEach(code => {
-                const emoteTag = `<img src="${kickBolbalEmotes[code]}" alt="${code}" class="kick-emote" title="${code}" style="height:1.5em;vertical-align:middle;">`;
-                const regex = new RegExp(`\\b${sanitize(code)}\\b`, 'gi');
-                text = text.replace(regex, emoteTag);
-            });
-            parts[i] = text;
-        }
-    }
-    rendered = parts.join('');
-    
+    sortedEmoteCodes.forEach(code => {
+        const emoteTag = `<img src="${kickBolbalEmotes[code]}" alt="${code}" class="kick-emote" style="height:1.5em;vertical-align:middle;">`;
+        const regex = new RegExp(`\\b${sanitize(code)}\\b`, 'gi');
+        rendered = rendered.replace(regex, emoteTag);
+    });
     return rendered;
 }
 

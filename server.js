@@ -577,40 +577,10 @@ async function fetchKickAvatar(username) {
     }
     const fallbackUrl = `https://kick.com/img/default-profile-pictures/default-avatar-${defaultNum}.webp`;
     
-    if (!username) return fallbackUrl;
-    
-    if (kickAvatarCache.has(username)) {
-        return kickAvatarCache.get(username);
-    }
-    
-    if (kickAvatarPending.has(username)) {
-        try {
-            return await kickAvatarPending.get(username);
-        } catch (e) {
-            return fallbackUrl;
-        }
-    }
-    
-    const fetchPromise = (async () => {
-        try {
-            const page = await getKickAvatarPage();
-            await page.goto(`https://kick.com/api/v1/users/${username}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
-            const content = await page.evaluate(() => document.body.innerText);
-            const data = JSON.parse(content);
-            const url = data?.profilepic || data?.profile_pic || fallbackUrl;
-            kickAvatarCache.set(username, url);
-            return url;
-        } catch (err) {
-            console.error(`[KickAvatar] Failed to fetch for ${username}:`, err.message);
-            kickAvatarCache.set(username, fallbackUrl);
-            return fallbackUrl;
-        } finally {
-            kickAvatarPending.delete(username);
-        }
-    })();
-    
-    kickAvatarPending.set(username, fetchPromise);
-    return await fetchPromise;
+    // Cloudflare blocks headless Puppeteer on Kick, which causes massive timeouts 
+    // and dropped chat messages in the chat rendering loop. 
+    // We immediately return the fallback avatar to keep chat fast and responsive.
+    return fallbackUrl;
 }
 
 app.get('/api/kick-avatar/:username', async (req, res) => {
