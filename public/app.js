@@ -3,7 +3,8 @@
 // If you host the frontend (this webpage) on Vercel and the backend on Render, 
 // change this to your Render URL (e.g., 'https://my-backend.onrender.com').
 // Leave as location.origin if running locally or keeping them together.
-const BACKEND_URL = 'https://tiktok-kick-chat-reader.onrender.com';
+// Use the current domain as the backend URL so it works on localhost, Render, or any domain
+const BACKEND_URL = window.location.origin;
 // =====================
 
 // Ensure window.connection is always initialized

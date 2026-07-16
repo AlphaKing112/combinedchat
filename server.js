@@ -74,8 +74,14 @@ const io = new Server(httpServer, {
 
 
 
-// Serve static files
-app.use(express.static('public'));
+// Serve static files with explicit MIME types
+app.use(express.static('public', {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        }
+    }
+}));
 app.use(express.json());
 
 
@@ -603,8 +609,7 @@ app.get('/api/kick-avatar/:username', async (req, res) => {
 });
 
 
-// Serve frontend files
-app.use(express.static('public'));
+// Serve frontend files handled at the top
 
 // Global error handlers to prevent crashes
 process.on('uncaughtException', (error) => {
