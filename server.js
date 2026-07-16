@@ -302,45 +302,12 @@ io.on('connection', (socket) => {
     // Kick chat client setup
     async function startKickChatClient(channelSlug, sessionId) {
         try {
-            console.log(`[Kick] Starting chat client for ${channelSlug} in read-only mode`);
+            console.log(`[Kick] Starting chat client for ${channelSlug} using Fallback method`);
             
-            // Try official library with latest Puppeteer configuration
-            try {
-                console.log(`[Kick] Attempting to use official library for ${channelSlug}`);
-                
-                // Use the latest Puppeteer configuration from the documentation
-                kickChatClient = createClient(channelSlug, {
-                    logger: false,
-                    readOnly: true,
-                    puppeteerOptions: {
-                        headless: true,
-                        args: [
-                            '--no-sandbox',
-                            '--disable-setuid-sandbox',
-                            '--disable-dev-shm-usage',
-                            '--disable-accelerated-2d-canvas',
-                            '--no-first-run',
-                            '--no-zygote',
-                            '--single-process',
-                            '--disable-gpu',
-                            '--disable-background-timer-throttling',
-                            '--disable-backgrounding-occluded-windows',
-                            '--disable-renderer-backgrounding'
-                        ]
-                    }
-                });
-                
-                console.log(`[Kick] Successfully created official client for ${channelSlug}`);
-                
-            } catch (officialError) {
-                console.log(`[Kick] Official library failed for ${channelSlug}:`, officialError.message);
-                console.log(`[Kick] Falling back to custom client for ${channelSlug}`);
-                
-                // Fall back to custom client
-                kickChatClient = new KickChatFallback(channelSlug);
-                kickChatClient.isFallback = true;
-                await kickChatClient.connect();
-            }
+            // Bypass the official library because Cloudflare blocks Puppeteer and crashes the Node.js process
+            kickChatClient = new KickChatFallback(channelSlug);
+            kickChatClient.isFallback = true;
+            await kickChatClient.connect();
             
             // Set up event handlers
             kickChatClient.on('ChatMessage', async (msg) => {
