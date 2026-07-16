@@ -504,6 +504,7 @@ $(document).ready(() => {
         window.connection.socket.on('chat', function(msg) {
             const tiktokMessage = `<div class="tiktok-message">
                 <img class="miniprofilepicture" src="${msg.profilePictureUrl || ''}">
+                <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 448 512"><path fill="#FFFFFF" d="M448 209.9a210.1 210.1 0 0 1-122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.2 121.2 0 0 0 1.9 22.2h0A122.2 122.2 0 0 0 381 102.4a121.4 121.4 0 0 0 67 20.1z"/></svg>
                 <b>${msg.nickname || msg.uniqueId}:</b>
                 <span>${sanitize(msg.comment)}</span>
             </div>`;
@@ -540,8 +541,7 @@ $(document).ready(() => {
             diamondsCount = 0;
             updateRoomStats();
             
-            // Clear chat container
-            $('.chatcontainer').empty().append('<h3 class="containerheader">Chats</h3>');
+            // Removed empty() call so connecting to TikTok doesn't wipe Kick/Twitch messages
             attachChatScrollHandler();
         });
         
@@ -649,6 +649,7 @@ $(document).ready(() => {
             }
 
             const twitchMessage = `<div class="twitch-message">
+                <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 512 512"><path fill="#9146FF" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73c-15.1 14.3-30 14.3-58 14.3H236.6l-77.3 73.1v-73.1H91.9V36.6h357.2z"/></svg>
                 <span class="twitch-badges">${badgeHtml}</span>
                 <b style="color: ${color};">${sanitize(displayName)}:</b>
                 <span>${sanitize(data.message)}</span>
@@ -1170,6 +1171,7 @@ $(document).ready(function() {
         const avatarId = `kick-avatar-chat-${msg.sender?.username}-${msgId}`;
         const kickMessage = `<div class="kick-message">
             <img id="${avatarId}" class="miniprofilepicture kick-avatar-img" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';" data-username="${msg.sender?.username}">
+            <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24"><path fill="#53FC18" d="M2.25 1.5h3.75v3h3v3h3v3.75h-3v3h-3v3h-3.75v-15.75Zm15.75 0h3.75v3h-3v-3Zm0 3.75h-3v3h3v-3Zm-3 3.75h-3v3h3v-3Zm3 3.75h-3v3h3v-3Zm0 3.75h3v3h-3v-3Z"/></svg>
             ${badgeHtml}
             <b style="color:${msg.sender?.color || getRandomColor(msg.sender?.username || '')} !important">${sanitize(msg.sender?.username || '')}:</b>
             <span>${messageHtml}</span>
