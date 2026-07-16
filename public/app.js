@@ -1,10 +1,14 @@
 // Always use the local server for development
-let backendUrl = location.origin;
-let connection = new TikTokIOConnection(backendUrl);
+// === CONFIGURATION ===
+// If you host the frontend (this webpage) on Vercel and the backend on Render, 
+// change this to your Render URL (e.g., 'https://my-backend.onrender.com').
+// Leave as location.origin if running locally or keeping them together.
+const BACKEND_URL = location.origin; 
+// =====================
 
 // Ensure window.connection is always initialized
 if (!window.connection) {
-    window.connection = new TikTokIOConnection(location.origin);
+    window.connection = new TikTokIOConnection(BACKEND_URL);
 }
 
 // Counter
@@ -446,6 +450,38 @@ $(document).ready(() => {
         }
     }
 
+    // Connect to Twitch via button
+    $('#twitchConnectButton').click(() => {
+        if ($('#twitchConnectButton').val() === 'disconnect') {
+            window.connection.socket.emit('disconnectTwitch');
+            $('#twitchInput').val('');
+            $('.twitch-message').remove();
+            $('#twitchConnectButton').val('connect');
+            $('#stateText').text('Disconnected from Twitch');
+            setLiveDot('twitchDot', false);
+            return;
+        }
+        let channel = $('#twitchInput').val().trim();
+        if (channel) {
+            window.connection.socket.emit('setTwitchChannel', channel);
+        }
+    });
+
+    $('#twitchInput').on('keyup', function (e) {
+        if (e.key === 'Enter') {
+            $('#twitchConnectButton').click();
+        }
+    });
+
+    // Auto-connect to Twitch if twitch parameter is present
+    if (window.settings.twitch) {
+        let twitchChannel = window.settings.twitch.trim();
+        if (twitchChannel) {
+            window.connection.socket.emit('setTwitchChannel', twitchChannel);
+            $('#stateText').text('Connecting to Twitch...');
+        }
+    }
+
     // Test event to confirm Socket.IO connection
     window.connection.socket.emit('testEvent', 'hello from frontend');
     
@@ -460,6 +496,7 @@ $(document).ready(() => {
     // Set initial state to offline
     setLiveDot('tiktokDot', false);
     setLiveDot('kickDot', false);
+    setLiveDot('twitchDot', false);
 
     // TIKTOK CHAT HANDLING - Use Socket.IO connection
     if (window.connection && window.connection.socket) {
@@ -494,6 +531,7 @@ $(document).ready(() => {
         window.connection.socket.on('tiktokConnected', function(state) {
             console.log('[LiveStatus] TikTok connected event fired, state:', state);
             setLiveDot('tiktokDot', true);
+            $('#connectButton').val('disconnect');
             $('#stateText').text(`Connected to roomId ${state && state.roomId ? state.roomId : ''}`);
             
             // Reset stats
@@ -510,6 +548,7 @@ $(document).ready(() => {
         window.connection.socket.on('tiktokDisconnected', function(reason) {
             console.log('[LiveStatus] TikTok disconnected event fired, reason:', reason);
             setLiveDot('tiktokDot', false);
+            $('#connectButton').val('connect');
             $('#stateText').text(reason);
             
             // Schedule retry if obs username set
@@ -581,6 +620,58 @@ $(document).ready(() => {
                 console.log('[DEBUG] Event:', evt, args);
             });
         });
+        
+        // TWITCH CHAT HANDLING
+        window.connection.socket.on('twitchConnected', function(data) {
+            console.log('[Twitch] Connected:', data);
+            setLiveDot('twitchDot', true);
+            $('#twitchConnectButton').val('disconnect');
+            $('#stateText').text(`Connected to Twitch: ${data.channelName}`);
+        });
+
+        window.connection.socket.on('twitchDisconnected', function(reason) {
+            console.log('[Twitch] Disconnected:', reason);
+            setLiveDot('twitchDot', false);
+            $('#twitchConnectButton').val('connect');
+        });
+
+        window.connection.socket.on('twitchChat', function(data) {
+            let color = data.tags && data.tags.color ? data.tags.color : '#9146FF';
+            let displayName = data.tags && data.tags['display-name'] ? data.tags['display-name'] : data.username;
+            
+            // Basic badge representation
+            let badgeHtml = '';
+            if (data.tags && data.tags.badges) {
+                if (data.tags.badges.broadcaster) badgeHtml += '🎥 ';
+                if (data.tags.badges.moderator) badgeHtml += '⚔️ ';
+                if (data.tags.badges.subscriber) badgeHtml += '⭐ ';
+                if (data.tags.badges.vip) badgeHtml += '💎 ';
+            }
+
+            const twitchMessage = `<div class="twitch-message">
+                <span class="twitch-badges">${badgeHtml}</span>
+                <b style="color: ${color};">${sanitize(displayName)}:</b>
+                <span>${sanitize(data.message)}</span>
+            </div>`;
+            
+            const isMainChat = $('.chatcontainer').length > 0;
+            const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
+            const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
+            
+            container.append(twitchMessage);
+            
+            // Limit to 100 messages
+            const allMessages = container.children('div.kick-message, div.tiktok-message, div.twitch-message, div:not(.containerheader)');
+            if (allMessages.length > 100) {
+                allMessages.slice(0, allMessages.length - 100).remove();
+            }
+            
+            const chatEl = container[0];
+            if (chatEl && doScroll) {
+                container.scrollTop(chatEl.scrollHeight);
+            }
+            if (isMainChat) attachChatScrollHandler(); 
+        });
     }
 });
 
@@ -598,6 +689,20 @@ function isValidTikTokUsername(username) {
 
 function connect() {
     console.log('[DEBUG] connect() called');
+    if ($('#connectButton').val() === 'disconnect') {
+        window.connection.socket.emit('disconnectTikTok');
+        $('#uniqueIdInput').val('');
+        $('.tiktok-message').remove();
+        $('#connectButton').val('connect');
+        $('#stateText').text('Disconnected from TikTok');
+        setLiveDot('tiktokDot', false);
+        viewerCount = 0;
+        likeCount = 0;
+        diamondsCount = 0;
+        updateRoomStats();
+        return;
+    }
+    
     let uniqueId = window.settings.username || $('#uniqueIdInput').val();
     if (uniqueId && isValidTikTokUsername(uniqueId)) {
         $('#stateText').text('Connecting...');
@@ -628,7 +733,7 @@ function connect() {
         
         // Emit setUniqueId to server via Socket.IO instead of direct connection
         window.connection.socket.emit('setUniqueId', uniqueId, {
-            enableExtendedGiftInfo: true
+            enableExtendedGiftInfo: false
         });
     } else {
         // Only show alert if the user actually clicked connect, not on page load
@@ -674,7 +779,7 @@ function handleEventLive(typeEvent, data) {
         if (typeEvent === ENUM_TYPE_ACTION.GIFT) {
             if (Number.isInteger(data.diamondCount) && data.diamondCount > 0) {
                 container.append(
-                    `<div>
+                    `<div class="tiktok-message">
                         <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
                         <b>${data.nickname || data.uniqueId}:</b>
                         <span>💎 [GIFT] sent ${data.diamondCount} diamonds</span>
@@ -687,10 +792,10 @@ function handleEventLive(typeEvent, data) {
             }
         } else if (typeEvent === ENUM_TYPE_ACTION.LIKE) {
             container.append(
-                `<div>
-                    <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
-                    <b>${data.nickname || data.uniqueId}:</b>
-                    <span style="color: red;">❤️ liked the stream</span>
+                `<div class="tiktok-message">
+                        <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
+                        <b>${data.nickname || data.uniqueId}:</b>
+                        <span style="color: red;">❤️ liked the stream</span>
                 </div>`
             );
             const chatEl = container[0];
@@ -699,10 +804,10 @@ function handleEventLive(typeEvent, data) {
             }
         } else {
             container.append(
-                `<div>
-                    <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
-                    <b>${data.nickname || data.uniqueId}:</b>
-                    <span>⭐ shared or followed</span>
+                `<div class="tiktok-message">
+                        <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
+                        <b>${data.nickname || data.uniqueId}:</b>
+                        <span>⭐ shared or followed</span>
                 </div>`
             );
             const chatEl = container[0];
@@ -840,6 +945,20 @@ function handleEventLive(typeEvent, data) {
 // KICK CHAT FRONTEND LOGIC
 $(document).ready(function() {
     $('#kickConnectButton').on('click', function() {
+        if ($('#kickConnectButton').val() === 'disconnect') {
+            window.connection.socket.emit('disconnectKick');
+            $('#kickLinkInput').val('');
+            $('.kick-message').remove();
+            $('#kickConnectButton').val('connect');
+            currentKickChannel = null;
+            kickChatReady = false;
+            $('#stateText').text('Disconnected from Kick');
+            setLiveDot('kickDot', false);
+            window.currentKickStreamData = null;
+            updateDurationDisplay();
+            return;
+        }
+        
         let kickInput = $('#kickLinkInput').val().trim();
         // If user pasted a full link, extract the username
         const match = kickInput.match(/kick\.com\/([A-Za-z0-9_]+)/i);
@@ -1001,9 +1120,9 @@ $(document).ready(function() {
     });
 
     window.connection.socket.on('kickConnected', function(data) {
-        // Clear chat container for new streamer when connection is ready
-        $('.chatcontainer').empty().append('<h3 class="containerheader">Chats</h3>');
+        console.log('[Kick] Connected to', data.channelSlug);
         $('#stateText').text('Connected to Kick stats! (Chat coming soon with official API)');
+        $('#kickConnectButton').val('disconnect');
         kickChatReady = true;
         attachChatScrollHandler(); // Re-attach scroll handler after clearing chat
         
@@ -1047,14 +1166,18 @@ $(document).ready(function() {
         const badgeHtml = renderKickBadges(msg.sender?.badges || msg.badges);
         console.log('[Badge Debug] Rendered badge HTML:', badgeHtml);
         
+        const msgId = msg.id || Date.now();
+        const avatarId = `kick-avatar-chat-${msg.sender?.username}-${msgId}`;
         const kickMessage = `<div class="kick-message">
-            <img class="miniprofilepicture" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';">
+            <img id="${avatarId}" class="miniprofilepicture kick-avatar-img" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';" data-username="${msg.sender?.username}">
             ${badgeHtml}
             <b style="color:${msg.sender?.color || getRandomColor(msg.sender?.username || '')} !important">${sanitize(msg.sender?.username || '')}:</b>
             <span>${messageHtml}</span>
         </div>`;
         
         container.append(kickMessage);
+        
+        // Backend now prefetches avatar, so no need for client-side pop-in fetch
         
         // Limit to 100 messages
         const allMessages = container.children('div.kick-message, div.tiktok-message, div:not(.containerheader)');
@@ -1081,14 +1204,26 @@ $(document).ready(function() {
         const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
         const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
         
+        const eventId = Date.now();
+        const avatarId = `kick-avatar-gift-${gift.sender?.username}-${eventId}`;
         const giftMessage = `<div class="kick-gift">
-                <img class="miniprofilepicture" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';">
+                <img id="${avatarId}" class="miniprofilepicture kick-avatar-img" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';">
             <span class="gift-icon">🎁</span>
             <b style="color:${gift.sender?.color || getRandomColor(gift.sender?.username || '')} !important">${gift.sender?.username}</b>
             <span>sent ${gift.gift.count}x ${gift.gift.name}</span>
         </div>`;
         
         container.append(giftMessage);
+
+        if (profilePic === 'https://kick.com/img/kick-logo.svg' && gift.sender?.username) {
+            fetch(`/api/kick-avatar/${gift.sender.username}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.url && data.url !== 'https://kick.com/img/kick-logo.svg') {
+                        $(`#${avatarId}`).attr('src', data.url);
+                    }
+                }).catch(() => {});
+        }
         
         // Limit messages and scroll
         const allMessages = container.children('div.kick-message, div.tiktok-message, div.kick-gift, div:not(.containerheader)');
@@ -1115,8 +1250,10 @@ $(document).ready(function() {
         const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
         const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
         
+        const eventId = Date.now();
+        const avatarId = `kick-avatar-sub-${sub.sender?.username}-${eventId}`;
         const subMessage = `<div class="kick-subscription">
-            <img class="miniprofilepicture" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';">
+            <img id="${avatarId}" class="miniprofilepicture kick-avatar-img" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';">
             <span class="sub-icon">💜</span>
             <b style="color:${sub.sender?.color || getRandomColor(sub.sender?.username || '')} !important">${sub.sender?.username}</b>
             <span>subscribed for ${sub.subscription.months} month${sub.subscription.months > 1 ? 's' : ''}</span>
@@ -1124,6 +1261,16 @@ $(document).ready(function() {
         </div>`;
         
         container.append(subMessage);
+
+        if (profilePic === 'https://kick.com/img/kick-logo.svg' && sub.sender?.username) {
+            fetch(`/api/kick-avatar/${sub.sender.username}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.url && data.url !== 'https://kick.com/img/kick-logo.svg') {
+                        $(`#${avatarId}`).attr('src', data.url);
+                    }
+                }).catch(() => {});
+        }
         
         // Limit messages and scroll
         const allMessages = container.children('div.kick-message, div.tiktok-message, div.kick-gift, div.kick-subscription, div:not(.containerheader)');
@@ -1150,14 +1297,26 @@ $(document).ready(function() {
         const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
         const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
         
+        const eventId = Date.now();
+        const avatarId = `kick-avatar-follow-${follow.sender?.username}-${eventId}`;
         const followMessage = `<div class="kick-follow">
-            <img class="miniprofilepicture" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';">
+            <img id="${avatarId}" class="miniprofilepicture kick-avatar-img" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';">
             <span class="follow-icon">👋</span>
             <b style="color:${follow.sender?.color || getRandomColor(follow.sender?.username || '')} !important">${follow.sender?.username}</b>
             <span>followed the channel</span>
         </div>`;
         
         container.append(followMessage);
+
+        if (profilePic === 'https://kick.com/img/kick-logo.svg' && follow.sender?.username) {
+            fetch(`/api/kick-avatar/${follow.sender.username}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.url && data.url !== 'https://kick.com/img/kick-logo.svg') {
+                        $(`#${avatarId}`).attr('src', data.url);
+                    }
+                }).catch(() => {});
+        }
         
         // Limit messages and scroll
         const allMessages = container.children('div.kick-message, div.tiktok-message, div.kick-gift, div.kick-subscription, div.kick-follow, div:not(.containerheader)');
@@ -1216,10 +1375,10 @@ $(document).ready(function() {
 
     window.connection.socket.on('kickDisconnected', function(reason) {
         console.log('[Kick] Disconnected:', reason);
-        $('#stateText').text('Kick chat disconnected: ' + reason);
-        
-        // Update live dot to offline when disconnected
+        $('#stateText').text(reason || 'Disconnected from Kick');
         setLiveDot('kickDot', false);
+        kickChatReady = false;
+        $('#kickConnectButton').val('connect');
     });
 
     // Browser-based Kick stats fetching

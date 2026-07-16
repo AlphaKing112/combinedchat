@@ -51,7 +51,7 @@ function getOverallIpConnectionCounts(io) {
 
 function getSocketIp(socket) {
     if (['::1', '::ffff:127.0.0.1'].includes(socket.handshake.address)) {
-        return socket.handshake.headers['x-forwarded-for'];
+        return socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
     } else {
         return socket.handshake.address;
     }

@@ -340,6 +340,24 @@ input[type="button"]:hover {
     gap: 5px;
 }
 
+/* Twitch Chat Styles */
+.twitch-message {
+    background: rgba(40,44,60,0.85) !important;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 8px 8px 8px 12px;
+    box-shadow: 0 1px 6px #9146ff33;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.twitch-badges {
+    font-size: 0.9em;
+    margin-right: 4px;
+}
+
+
 .kick-gift {
     margin: 3px 0;
     padding: 3px 8px;

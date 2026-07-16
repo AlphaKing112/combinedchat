@@ -29,6 +29,10 @@
                 <span class="live-dot" id="kickDot"></span>
                 <span style="font-size:1em;">Kick</span>
             </div>
+            <div id="twitchLiveStatus" style="display:flex;align-items:center;gap:6px;">
+                <span class="live-dot" id="twitchDot"></span>
+                <span style="font-size:1em;">Twitch</span>
+            </div>
         </div>
     </div>
 
@@ -45,6 +49,10 @@
         <p>Enter the <b>Kick channel name</b> (e.g. somechannel):</p>
         <input type="text" id="kickLinkInput" placeholder="Kick channel name (e.g. somechannel)" autocomplete="off">
         <input type="button" id="kickConnectButton" value="connect">
+        <br>
+        <p>Enter the <b>Twitch channel name</b>:</p>
+        <input type="text" id="twitchInput" placeholder="Twitch channel name" autocomplete="off">
+        <input type="button" id="twitchConnectButton" value="connect">
         <br>
     </div>
     <div id="kickStats"></div>
@@ -68,6 +76,7 @@
 function generateOverlay() {
     let tiktokUsername = $('#uniqueIdInput').val().trim();
     let kickChannel = $('#kickLinkInput').val().trim();
+    let twitchChannel = $('#twitchInput').val().trim();
 
     let url = '/obs.html?';
     let params = [];
@@ -77,6 +86,9 @@ function generateOverlay() {
     }
     if (kickChannel) {
         params.push('kick=' + encodeURIComponent(kickChannel));
+    }
+    if (twitchChannel) {
+        params.push('twitch=' + encodeURIComponent(twitchChannel));
     }
 
     // Add your other overlay params as before
@@ -89,11 +101,11 @@ function generateOverlay() {
     params.push('fontColor=rgb(227,229,235)');
     params.push('fontSize=1.3em');
 
-    if (tiktokUsername || kickChannel) {
+    if (tiktokUsername || kickChannel || twitchChannel) {
         url += params.join('&');
         window.open(url, '_blank');
     } else {
-        alert("Enter TikTok username or Kick channel name");
+        alert("Enter TikTok username, Kick channel name, or Twitch channel name");
     }
 }
 

@@ -12,7 +12,8 @@
     "dotenv": "^16.0.0",
     "express": "^4.17.2",
     "socket.io": "^4.4.1",
-    "tiktok-live-connector": "^1.2.3",
+    "tiktok-live-connector": "^2.4.0",
+    "tmi.js": "^1.8.5",
     "vercel": "^44.6.3",
     "ws": "^8.14.0"
   },

@@ -8,10 +8,17 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const { TikTokConnectionWrapper, getGlobalConnectionCount } = require('./connectionWrapper');
-const { clientBlocked } = require('./limiter');
+const http = require('http');
+const socketIo = require('socket.io');
 const axios = require('axios');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+const { WebcastPushConnection } = require('tiktok-live-connector');
+const { clientBlocked } = require('./limiter');
 const { createClient } = require('@retconned/kick-js');
 const KickChatFallback = require('./kick-chat-fallback');
+const tmi = require('tmi.js');
 
 
 // Global error handler for Puppeteer errors
@@ -45,12 +52,37 @@ io.on('connection', (socket) => {
     let tiktokConnectionWrapper = null;
     let kickChatClient = null;
     let kickSessionId = 0;
+    let twitchChatClient = null;
 
     console.info('New connection from origin', socket.handshake.headers['origin'] || socket.handshake.headers['referer']);
 
     socket.on('testEvent', (data) => {
         console.log('[Test] testEvent received:', data);
         socket.emit('testEvent', { message: 'Backend received your test event!', timestamp: new Date().toISOString() });
+    });
+
+    socket.on('disconnectKick', () => {
+        if (kickChatClient) {
+            try { kickChatClient.disconnect(); } catch (e) {}
+            kickChatClient = null;
+        }
+        socket.emit('kickDisconnected', 'Disconnected');
+    });
+
+    socket.on('disconnectTwitch', () => {
+        if (twitchChatClient) {
+            try { twitchChatClient.disconnect(); } catch (e) {}
+            twitchChatClient = null;
+        }
+        socket.emit('twitchDisconnected', 'Disconnected');
+    });
+
+    socket.on('disconnectTikTok', () => {
+        if (tiktokConnectionWrapper) {
+            tiktokConnectionWrapper.disconnect();
+            tiktokConnectionWrapper = null;
+        }
+        socket.emit('tiktokDisconnected', 'Disconnected');
     });
 
     // TIKTOK CHAT HANDLING
@@ -67,7 +99,13 @@ io.on('connection', (socket) => {
 
         // Session ID in .env file is optional
         if (process.env.SESSIONID) {
-            options.sessionId = process.env.SESSIONID;
+            options.session = {
+                cookie: {
+                    value: {
+                        sessionId: process.env.SESSIONID
+                    }
+                }
+            };
             console.info('Using SessionId');
         }
 
@@ -111,20 +149,70 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Redirect wrapper control events once
-        tiktokConnectionWrapper.once('connected', state => socket.emit('tiktokConnected', state));
-        tiktokConnectionWrapper.once('disconnected', reason => socket.emit('tiktokDisconnected', reason));
+        tiktokConnectionWrapper.on('connected', state => {
+            console.log(`[TikTok] Connected to: ${state.roomId}`);
+            socket.emit('tiktokConnected', state);
+        });
 
-        // Notify client when stream ends
+        tiktokConnectionWrapper.on('disconnected', reason => {
+            console.log(`[TikTok] Disconnected: ${reason}`);
+            socket.emit('tiktokDisconnected', reason);
+        });
+
+        const extractUserInfo = (data) => {
+            const user = data.user || data;
+            let profilePictureUrl = '';
+            if (user.avatarThumb && user.avatarThumb.urlList && user.avatarThumb.urlList.length > 0) {
+                profilePictureUrl = user.avatarThumb.urlList[0];
+            } else if (data.profilePictureUrl) {
+                profilePictureUrl = data.profilePictureUrl;
+            }
+            return {
+                uniqueId: user.displayId || user.uniqueId || '',
+                nickname: user.nickname || '',
+                profilePictureUrl: profilePictureUrl
+            };
+        };
+
+        const emitTikTok = (eventName, data) => {
+            if (!data) return;
+            const userInfo = extractUserInfo(data);
+            const emitData = {
+                ...data,
+                ...userInfo,
+                comment: data.content || data.comment || ''
+            };
+            if (eventName === 'gift') {
+                if (data.gift) {
+                    emitData.giftId = data.gift.id || data.giftId;
+                    emitData.giftName = data.gift.name || data.giftName;
+                    emitData.diamondCount = data.gift.diamondCount || data.diamondCount;
+                }
+            }
+            socket.emit(eventName, emitData);
+        };
+
+        // Forward events to the client using the shim
+        tiktokConnectionWrapper.connection.on('chat', (data) => emitTikTok('chat', data));
+        tiktokConnectionWrapper.connection.on('member', (data) => emitTikTok('member', data));
+        tiktokConnectionWrapper.connection.on('gift', (data) => emitTikTok('gift', data));
+        tiktokConnectionWrapper.connection.on('roomUser', (data) => {
+            if (typeof data.viewerCount === 'number') {
+                socket.emit('roomUser', data);
+            } else if (data.data && typeof data.data.viewerCount === 'number') {
+                socket.emit('roomUser', data.data);
+            }
+        });
+        tiktokConnectionWrapper.connection.on('like', (data) => {
+            if (data.likeCount === undefined && data.count !== undefined) {
+                data.likeCount = data.count;
+            }
+            emitTikTok('like', data);
+        });
+        tiktokConnectionWrapper.connection.on('social', (data) => emitTikTok('social', data));
+        
+        // Ensure streamEnd is forwarded properly
         tiktokConnectionWrapper.connection.on('streamEnd', () => socket.emit('streamEnd'));
-
-        // Redirect message events
-        tiktokConnectionWrapper.connection.on('roomUser', msg => socket.emit('roomUser', msg));
-        tiktokConnectionWrapper.connection.on('member', msg => socket.emit('member', msg));
-        tiktokConnectionWrapper.connection.on('chat', msg => socket.emit('chat', msg));
-        tiktokConnectionWrapper.connection.on('gift', msg => socket.emit('gift', msg));
-        tiktokConnectionWrapper.connection.on('social', msg => socket.emit('social', msg));
-        tiktokConnectionWrapper.connection.on('like', msg => socket.emit('like', msg));
         tiktokConnectionWrapper.connection.on('questionNew', msg => socket.emit('questionNew', msg));
         tiktokConnectionWrapper.connection.on('linkMicBattle', msg => socket.emit('linkMicBattle', msg));
         tiktokConnectionWrapper.connection.on('linkMicArmies', msg => socket.emit('linkMicArmies', msg));
@@ -255,12 +343,17 @@ io.on('connection', (socket) => {
             }
             
             // Set up event handlers
-            kickChatClient.on('ChatMessage', (msg) => {
+            kickChatClient.on('ChatMessage', async (msg) => {
                 if (socket.currentKickSessionId !== sessionId) {
                     return;
                 }
                 
                 console.log(`[Kick] Chat message received:`, msg);
+                
+                // Fetch avatar before emitting to avoid pop-in
+                if (msg.sender && msg.sender.username) {
+                    msg.sender.profilePic = await fetchKickAvatar(msg.sender.username);
+                }
                 
                 // Enhanced badge processing
                 let badges = [];
@@ -380,6 +473,43 @@ io.on('connection', (socket) => {
         }
     }
 
+    // TWITCH CHAT HANDLING
+    socket.on('setTwitchChannel', (channelName) => {
+        if (!channelName) return;
+        console.log(`[Twitch] Attempting to connect to ${channelName}`);
+        
+        if (twitchChatClient) {
+            twitchChatClient.disconnect().catch(() => {});
+        }
+
+        twitchChatClient = new tmi.Client({
+            channels: [ channelName ]
+        });
+
+        twitchChatClient.connect().then(() => {
+            console.log(`[Twitch] Connected to ${channelName}`);
+            socket.emit('twitchConnected', { channelName });
+        }).catch((err) => {
+            console.error(`[Twitch] Connection error for ${channelName}:`, err);
+            socket.emit('twitchDisconnected', 'Error connecting to Twitch channel.');
+        });
+
+        twitchChatClient.on('message', (channel, tags, message, self) => {
+            if (self) return;
+            socket.emit('twitchChat', {
+                channel: channel,
+                tags: tags,
+                message: message,
+                timestamp: Date.now()
+            });
+        });
+        
+        twitchChatClient.on('disconnected', (reason) => {
+            console.log(`[Twitch] Disconnected from ${channelName}: ${reason}`);
+            socket.emit('twitchDisconnected', reason);
+        });
+    });
+
     socket.on('disconnect', () => {
         // Clean up TikTok connection
         if (tiktokConnectionWrapper) {
@@ -392,6 +522,12 @@ io.on('connection', (socket) => {
                 kickChatClient.disconnect();
             } catch (e) {}
             kickChatClient = null;
+        }
+
+        // Clean up Twitch chat client
+        if (twitchChatClient) {
+            twitchChatClient.disconnect().catch(() => {});
+            twitchChatClient = null;
         }
     });
 });
@@ -434,6 +570,81 @@ app.get('/api/kick-test/:channel', async (req, res) => {
   }
 });
 
+
+
+// Avatar proxy to bypass CORS for Kick profile pictures
+const kickAvatarCache = new Map();
+const kickAvatarPending = new Map();
+let kickAvatarBrowser = null;
+let kickAvatarPage = null;
+
+async function getKickAvatarPage() {
+    if (!kickAvatarBrowser) {
+        console.log('[Kick] Initializing Puppeteer for avatars...');
+        kickAvatarBrowser = await puppeteer.launch({ 
+            headless: true,
+            args: [
+                '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote',
+                '--single-process', '--disable-gpu'
+            ]
+        });
+        kickAvatarPage = await kickAvatarBrowser.newPage();
+    }
+    return kickAvatarPage;
+}
+
+async function fetchKickAvatar(username) {
+    let defaultNum = 1;
+    if (username) {
+        let hash = 0;
+        for (let i = 0; i < username.length; i++) {
+            hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        defaultNum = Math.abs(hash % 6) + 1; // 1 to 6
+    }
+    const fallbackUrl = `https://kick.com/img/default-profile-pictures/default-avatar-${defaultNum}.webp`;
+    
+    if (!username) return fallbackUrl;
+    
+    if (kickAvatarCache.has(username)) {
+        return kickAvatarCache.get(username);
+    }
+    
+    if (kickAvatarPending.has(username)) {
+        try {
+            return await kickAvatarPending.get(username);
+        } catch (e) {
+            return fallbackUrl;
+        }
+    }
+    
+    const fetchPromise = (async () => {
+        try {
+            const page = await getKickAvatarPage();
+            await page.goto(`https://kick.com/api/v1/users/${username}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+            const content = await page.evaluate(() => document.body.innerText);
+            const data = JSON.parse(content);
+            const url = data?.profilepic || data?.profile_pic || fallbackUrl;
+            kickAvatarCache.set(username, url);
+            return url;
+        } catch (err) {
+            console.error(`[KickAvatar] Failed to fetch for ${username}:`, err.message);
+            kickAvatarCache.set(username, fallbackUrl);
+            return fallbackUrl;
+        } finally {
+            kickAvatarPending.delete(username);
+        }
+    })();
+    
+    kickAvatarPending.set(username, fetchPromise);
+    return await fetchPromise;
+}
+
+app.get('/api/kick-avatar/:username', async (req, res) => {
+    const url = await fetchKickAvatar(req.params.username);
+    res.json({ url });
+});
 
 
 // Serve frontend files
