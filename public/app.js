@@ -442,8 +442,19 @@ $(document).ready(() => {
             // Track the current channel for filtering
             currentKickChannel = kickInput;
             kickChatReady = false;
-            window.connection.socket.emit('setKickLink', kickInput);
             $('#stateText').text('Connecting to Kick...');
+            
+            // Try to fetch chatroom ID from frontend to bypass backend Cloudflare blocks
+            fetch(`https://kick.com/api/v1/channels/${kickInput}`)
+                .then(r => r.json())
+                .then(data => {
+                    const chatroomId = data.chatroom?.id || data.chatroom_id || data.id;
+                    window.connection.socket.emit('setKickLink', kickInput, chatroomId);
+                })
+                .catch(err => {
+                    console.log('Frontend fetch failed, falling back to server fetch', err);
+                    window.connection.socket.emit('setKickLink', kickInput);
+                });
             
             // Refresh bolbal emotes when connecting to Kick
             fetchKickBolbalEmotes();
@@ -974,8 +985,19 @@ $(document).ready(function() {
         // Track the current channel for filtering
         currentKickChannel = kickInput;
         kickChatReady = false;
-        window.connection.socket.emit('setKickLink', kickInput);
         $('#stateText').text('Connecting to Kick...');
+        
+        // Try to fetch chatroom ID from frontend to bypass backend Cloudflare blocks
+        fetch(`https://kick.com/api/v1/channels/${kickInput}`)
+            .then(r => r.json())
+            .then(data => {
+                const chatroomId = data.chatroom?.id || data.chatroom_id || data.id;
+                window.connection.socket.emit('setKickLink', kickInput, chatroomId);
+            })
+            .catch(err => {
+                console.log('Frontend fetch failed, falling back to server fetch', err);
+                window.connection.socket.emit('setKickLink', kickInput);
+            });
         
         // Refresh bolbal emotes when connecting to Kick
         fetchKickBolbalEmotes();

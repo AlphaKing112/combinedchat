@@ -227,7 +227,7 @@ io.on('connection', (socket) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     };
     
-    socket.on('setKickLink', async (kickLink) => {
+    socket.on('setKickLink', async (kickLink, providedChatroomId) => {
         try {
             // Disconnect previous Kick client
             if (kickChatClient) {
@@ -254,9 +254,14 @@ io.on('connection', (socket) => {
             }
             channelSlug = channelSlug.toLowerCase();
 
-            console.log(`[Kick] Attempting to connect to ${channelSlug} (original input: ${kickLink})`);
+            console.log(`[Kick] Attempting to connect to ${channelSlug} (original input: ${kickLink}, providedChatroomId: ${providedChatroomId})`);
 
-
+            if (providedChatroomId) {
+                console.log(`[Kick] Using chatroomId from frontend: ${providedChatroomId}`);
+                socket.emit('kickConnected', { channelSlug });
+                startKickChatClient(channelSlug, thisSessionId, providedChatroomId);
+                return;
+            }
 
             // Fall back to public API
             try {
@@ -300,12 +305,12 @@ io.on('connection', (socket) => {
     });
 
     // Kick chat client setup
-    async function startKickChatClient(channelSlug, sessionId) {
+    async function startKickChatClient(channelSlug, sessionId, chatroomId = null) {
         try {
             console.log(`[Kick] Starting chat client for ${channelSlug} using Fallback method`);
             
             // Bypass the official library because Cloudflare blocks Puppeteer and crashes the Node.js process
-            kickChatClient = new KickChatFallback(channelSlug);
+            kickChatClient = new KickChatFallback(channelSlug, chatroomId);
             kickChatClient.isFallback = true;
             await kickChatClient.connect();
             

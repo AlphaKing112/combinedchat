@@ -2,8 +2,9 @@ const WebSocket = require('ws');
 const axios = require('axios');
 
 class KickChatFallback {
-    constructor(channelSlug) {
+    constructor(channelSlug, chatroomId = null) {
         this.channelSlug = channelSlug;
+        this.chatroomId = chatroomId;
         this.ws = null;
         this.isConnected = false;
         this.reconnectAttempts = 0;
@@ -114,13 +115,21 @@ class KickChatFallback {
 
     async pollChatMessages() {
         try {
-            // Try to get recent chat messages via API bypassing Cloudflare
-            const response = await axios.get(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v1/channels/' + this.channelSlug + '/messages')}`, {
+            // Try to get recent chat messages via API with enhanced headers
+            const response = await axios.get(`https://kick.com/api/v1/channels/${this.channelSlug}/messages`, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json, text/plain, */*'
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'empty',
+                    'Sec-Fetch-Mode': 'cors',
+                    'Sec-Fetch-Site': 'same-origin'
                 },
-                timeout: 10000
+                timeout: 5000
             });
             
             if (response.data && response.data.data) {
@@ -198,22 +207,25 @@ class KickChatFallback {
     }
 
     async getChannelInfo() {
-        // If the user inputs a number, assume it's the chatroom_id directly (bypasses Cloudflare block)
-        if (/^\d+$/.test(this.channelSlug)) {
-            console.log(`[KickFallback] Direct chatroom ID provided: ${this.channelSlug}`);
-            return {
-                chatroom_id: this.channelSlug,
-                followers: 'N/A',
-                viewers: 0
-            };
-        }
-
         try {
-            // Try with allorigins proxy to bypass Cloudflare 403
-            const response = await axios.get(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v1/channels/' + this.channelSlug)}`, {
+            if (this.chatroomId) {
+                console.log(`[KickFallback] Using provided chatroomId for ${this.channelSlug}: ${this.chatroomId}`);
+                return { chatroom_id: this.chatroomId };
+            }
+            
+            // Try with enhanced headers to avoid 403
+            const response = await axios.get(`https://kick.com/api/v1/channels/${this.channelSlug}`, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json, text/plain, */*'
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'empty',
+                    'Sec-Fetch-Mode': 'cors',
+                    'Sec-Fetch-Site': 'same-origin'
                 },
                 timeout: 10000
             });
