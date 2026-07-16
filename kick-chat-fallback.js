@@ -68,7 +68,16 @@ class KickChatFallback {
                             channel: `chatrooms.${channelInfo.chatroom_id}`
                         }
                     };
+                    const subscribeMessageV2 = {
+                        event: 'pusher:subscribe',
+                        data: {
+                            auth: '',
+                            channel: `chatrooms.${channelInfo.chatroom_id}.v2`
+                        }
+                    };
+                    
                     this.ws.send(JSON.stringify(subscribeMessage));
+                    this.ws.send(JSON.stringify(subscribeMessageV2));
                     resolve(true);
                 });
 
@@ -271,6 +280,8 @@ class KickChatFallback {
             } catch (error) {
                 console.log(`[KickFallback] Error parsing chat message:`, error.message);
             }
+        } else if (!message.event.startsWith('pusher')) {
+            console.log(`[KickFallback] Unhandled event received: ${message.event}`);
         }
     }
 
