@@ -78,6 +78,14 @@ class KickChatFallback {
                     
                     this.ws.send(JSON.stringify(subscribeMessage));
                     this.ws.send(JSON.stringify(subscribeMessageV2));
+                    
+                    // Keep connection alive with Pusher ping/pong
+                    this.pingInterval = setInterval(() => {
+                        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                            this.ws.send(JSON.stringify({ event: 'pusher:ping', data: '{}' }));
+                        }
+                    }, 30000);
+                    
                     resolve(true);
                 });
 
@@ -91,12 +99,14 @@ class KickChatFallback {
                 });
 
                 this.ws.on('close', () => {
+                    clearInterval(this.pingInterval);
                     console.log(`[KickFallback] WebSocket closed for ${this.channelSlug}`);
                     this.isConnected = false;
                     this.scheduleReconnect();
                 });
 
                 this.ws.on('error', (error) => {
+                    clearInterval(this.pingInterval);
                     console.error(`[KickFallback] WebSocket error for ${this.channelSlug}:`, error.message);
                     this.isConnected = false;
                     clearTimeout(timeout);
@@ -279,6 +289,10 @@ class KickChatFallback {
                 });
             } catch (error) {
                 console.log(`[KickFallback] Error parsing chat message:`, error.message);
+            }
+        } else if (message.event === 'pusher:ping') {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ event: 'pusher:pong', data: '{}' }));
             }
         } else if (!message.event.startsWith('pusher')) {
             console.log(`[KickFallback] Unhandled event received: ${message.event}`);
