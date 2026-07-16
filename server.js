@@ -40,7 +40,7 @@ async function fetchTwitchAvatar(username) {
     return fallback;
 }
 
-const startServer = () => {require('socket.io');
+require('socket.io');
 const { Server } = require('socket.io');
 const { TikTokConnectionWrapper, getGlobalConnectionCount } = require('./connectionWrapper');
 const http = require('http');
