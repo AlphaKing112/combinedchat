@@ -583,7 +583,7 @@ $(document).ready(() => {
 
             const twitchMessage = `<div class="twitch-message">
                 <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 512 512"><path fill="#9146FF" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73c-15.1 14.3-30 14.3-58 14.3H236.6l-77.3 73.1v-73.1H91.9V36.6h357.2z"/></svg>
-                <span class="twitch-badges">${badgeHtml}</span>
+                ${badgeHtml}
                 <b style="color: ${color};">${sanitize(displayName)}:</b>
                 <span>${sanitize(data.message)}</span>
             </div>`;
@@ -1122,8 +1122,8 @@ $(document).ready(function() {
         const msgId = msg.id || Date.now();
         const avatarId = `kick-avatar-chat-${msg.sender?.username}-${msgId}`;
         const kickMessage = `<div class="kick-message">
+            <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 256 256"><path fill="#53fc18" d="M86 44v34H61v112h25v34h34v-34h25v34h34v-34h-25v-34h25v-34h-25V85h-34V51h-34v27h-25V44H86z"/></svg>
             <img id="${avatarId}" class="miniprofilepicture kick-avatar-img" src="${profilePic}" onerror="this.onerror=null;this.src='kick-logo.png';" data-username="${msg.sender?.username}">
-            <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;border-radius:2px;" viewBox="0 0 256 256"><path fill="#53fc18" d="M0 0h256v256H0z"/><path fill="#000" d="M86 44v34H61v112h25v34h34v-34h25v34h34v-34h-25v-34h25v-34h-25V85h-34V51h-34v27h-25V44H86z"/></svg>
             ${badgeHtml}
             <b style="color:${msg.sender?.color || getRandomColor(msg.sender?.username || '')} !important">${sanitize(msg.sender?.username || '')}:</b>
             <span>${messageHtml}</span>
