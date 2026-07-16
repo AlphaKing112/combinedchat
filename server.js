@@ -469,16 +469,9 @@ io.on('connection', (socket) => {
             twitchChatClient.disconnect().catch(() => {});
         }
 
-        const tmiOptions = { channels: [ channelName ] };
-        
-        if (process.env.TWITCH_USERNAME && process.env.TWITCH_OAUTH_TOKEN) {
-            tmiOptions.identity = {
-                username: process.env.TWITCH_USERNAME,
-                password: process.env.TWITCH_OAUTH_TOKEN
-            };
-        }
-
-        twitchChatClient = new tmi.Client(tmiOptions);
+        twitchChatClient = new tmi.Client({
+            channels: [ channelName ]
+        });
 
         twitchChatClient.connect().then(() => {
             console.log(`[Twitch] Connected to ${channelName}`);
@@ -506,24 +499,6 @@ io.on('connection', (socket) => {
         twitchChatClient.on('disconnected', (reason) => {
             console.log(`[Twitch] Disconnected from ${channelName}: ${reason}`);
             socket.emit('twitchDisconnected', reason);
-        });
-        
-        socket.on('twitchModerateUser', (action, targetUser, messageId) => {
-            if (!twitchChatClient || !process.env.TWITCH_USERNAME) {
-                console.warn('[Twitch] Moderation attempted but no identity provided in .env');
-                return;
-            }
-            const chan = `#${channelName.replace('#', '')}`;
-            
-            if (action === 'timeout_1m') {
-                twitchChatClient.timeout(chan, targetUser, 60, "Moderated via chat reader").catch(console.error);
-            } else if (action === 'timeout_10m') {
-                twitchChatClient.timeout(chan, targetUser, 600, "Moderated via chat reader").catch(console.error);
-            } else if (action === 'ban') {
-                twitchChatClient.ban(chan, targetUser, "Moderated via chat reader").catch(console.error);
-            } else if (action === 'delete' && messageId) {
-                twitchChatClient.deletemessage(chan, messageId).catch(console.error);
-            }
         });
     });
 
