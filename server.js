@@ -335,33 +335,7 @@ io.on('connection', (socket) => {
                     badges = msg.sender.badges;
                 }
                 
-                // Add role-based badges
-                if (msg.sender) {
-                    if (msg.sender.isModerator) {
-                        badges.push({
-                            name: 'moderator',
-                            title: 'Moderator',
-                            icon_url: 'https://kick.com/img/badges/moderator.svg',
-                            type: 'moderator'
-                        });
-                    }
-                    if (msg.sender.isSubscriber) {
-                        badges.push({
-                            name: 'subscriber',
-                            title: 'Subscriber',
-                            icon_url: 'https://kick.com/img/badges/subscriber.svg',
-                            type: 'subscriber'
-                        });
-                    }
-                    if (msg.sender.isVerified) {
-                        badges.push({
-                            name: 'verified',
-                            title: 'Verified',
-                            icon_url: 'https://kick.com/img/badges/verified.svg',
-                            type: 'verified'
-                        });
-                    }
-                }
+                // We rely entirely on the badges provided by Kick in msg.sender.badges.
                 
                 socket.emit('kickChat', {
                     sender: {

@@ -1483,8 +1483,8 @@ function renderKickMessage(content, emotes) {
     // Then, replace bolbal emotes from the global cache
     const sortedEmoteCodes = Object.keys(kickBolbalEmotes).sort((a, b) => b.length - a.length);
     sortedEmoteCodes.forEach(code => {
-        const emoteTag = `<img src="${kickBolbalEmotes[code]}" alt="${code}" class="kick-emote" style="height:1.5em;vertical-align:middle;">`;
-        const regex = new RegExp(`\\b${sanitize(code)}\\b`, 'gi');
+        const emoteTag = `<img src="${kickBolbalEmotes[code]}" alt="${code}" class="kick-emote" title="${code}" style="height:1.5em;vertical-align:middle;">`;
+        const regex = new RegExp(`(?![^<]*>)\\b${sanitize(code)}\\b`, 'gi');
         rendered = rendered.replace(regex, emoteTag);
     });
     return rendered;
