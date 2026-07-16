@@ -53,8 +53,51 @@
         <p>Enter the <b>Twitch channel name</b>:</p>
         <input type="text" id="twitchInput" placeholder="Twitch channel name" autocomplete="off">
         <input type="button" id="twitchConnectButton" value="connect">
+        <input type="button" id="twitchPlayerButton" value="Watch Stream" onclick="toggleTwitchPlayer()" style="display: none; margin-left: 10px; background-color: #9146FF; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
         <br>
     </div>
+    
+    <div id="twitchPlayerContainer" style="display: none; width: 100%; max-width: 800px; margin: 20px auto; text-align: center; aspect-ratio: 16/9;"></div>
+
+    <script>
+    let isTwitchPlayerShowing = false;
+    function toggleTwitchPlayer() {
+        const channel = $('#twitchInput').val().trim();
+        const container = document.getElementById('twitchPlayerContainer');
+        const btn = document.getElementById('twitchPlayerButton');
+        
+        if (!channel) {
+            alert('Please enter a Twitch channel name first!');
+            return;
+        }
+
+        if (isTwitchPlayerShowing) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            btn.value = 'Watch Stream';
+            isTwitchPlayerShowing = false;
+        } else {
+            container.style.display = 'block';
+            // Use window.location.hostname to automatically handle localhost or production domains
+            const parentDomain = window.location.hostname;
+            container.innerHTML = `<iframe src="https://player.twitch.tv/?channel=${channel}&parent=${parentDomain}&muted=true" height="100%" width="100%" allowfullscreen></iframe>`;
+            btn.value = 'Hide Stream';
+            isTwitchPlayerShowing = true;
+        }
+    }
+    
+    // Show the button when a user types in a channel
+    document.getElementById('twitchInput').addEventListener('input', function() {
+        const btn = document.getElementById('twitchPlayerButton');
+        if (this.value.trim().length > 0) {
+            btn.style.display = 'inline-block';
+        } else {
+            btn.style.display = 'none';
+            if (isTwitchPlayerShowing) toggleTwitchPlayer();
+        }
+    });
+    </script>
+
     <div id="kickStats"></div>
 
     <div id="roomStats">
