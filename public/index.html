@@ -46,8 +46,9 @@
         <input type="button" id="connectButton" value="connect">
         <a href="#" onclick="generateOverlay()">Generate Overlay URL</a>
         <br>
-        <p>Enter the <b>Kick channel name</b> (e.g. somechannel):</p>
-        <input type="text" id="kickLinkInput" placeholder="Kick channel name (e.g. somechannel)" autocomplete="off">
+        <p style="margin-top: 15px;">Enter your <b>Kick Chatroom ID</b>:<br>
+        <span style="font-size: 0.85em; color: #aaa;">(Kick recently blocked automatic bot connections. To connect, go to <a href="https://kick.com/api/v1/channels/username" target="_blank" style="color: #1db954;">https://kick.com/api/v1/channels/your_username</a> in your browser and copy the number next to <b>"chatroom":{"id":</b>)</span></p>
+        <input type="text" id="kickLinkInput" placeholder="Kick Chatroom ID (e.g. 123456)" autocomplete="off">
         <input type="button" id="kickConnectButton" value="connect">
         <br>
         <p>Enter the <b>Twitch channel name</b>:</p>
@@ -105,7 +106,7 @@ function generateOverlay() {
         url += params.join('&');
         window.open(url, '_blank');
     } else {
-        alert("Enter TikTok username, Kick channel name, or Twitch channel name");
+        alert("Enter TikTok username, Kick Chatroom ID, or Twitch channel name");
     }
 }
 
