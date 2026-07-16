@@ -448,12 +448,20 @@ $(document).ready(() => {
             fetch(`https://kick.com/api/v1/channels/${kickInput}`)
                 .then(r => r.json())
                 .then(data => {
+                    if (data.error) {
+                        $('#stateText').text(`Kick Error: ${data.error} (Cloudflare block or invalid channel)`);
+                        return;
+                    }
                     const chatroomId = data.chatroom?.id || data.chatroom_id || data.id;
+                    if (!chatroomId) {
+                        $('#stateText').text(`Kick Error: Could not find chatroom ID for ${kickInput}`);
+                        return;
+                    }
                     window.connection.socket.emit('setKickLink', kickInput, chatroomId);
                 })
                 .catch(err => {
-                    console.log('Frontend fetch failed, falling back to server fetch', err);
-                    window.connection.socket.emit('setKickLink', kickInput);
+                    console.log('Frontend fetch failed', err);
+                    $('#stateText').text(`Kick Connection Failed: Network/CORS error fetching channel data.`);
                 });
             
             // Refresh bolbal emotes when connecting to Kick
@@ -991,12 +999,20 @@ $(document).ready(function() {
         fetch(`https://kick.com/api/v1/channels/${kickInput}`)
             .then(r => r.json())
             .then(data => {
+                if (data.error) {
+                    $('#stateText').text(`Kick Error: ${data.error} (Cloudflare block or invalid channel)`);
+                    return;
+                }
                 const chatroomId = data.chatroom?.id || data.chatroom_id || data.id;
+                if (!chatroomId) {
+                    $('#stateText').text(`Kick Error: Could not find chatroom ID for ${kickInput}`);
+                    return;
+                }
                 window.connection.socket.emit('setKickLink', kickInput, chatroomId);
             })
             .catch(err => {
-                console.log('Frontend fetch failed, falling back to server fetch', err);
-                window.connection.socket.emit('setKickLink', kickInput);
+                console.log('Frontend fetch failed', err);
+                $('#stateText').text(`Kick Connection Failed: Network/CORS error fetching channel data.`);
             });
         
         // Refresh bolbal emotes when connecting to Kick
