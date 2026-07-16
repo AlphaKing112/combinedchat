@@ -249,116 +249,30 @@ async function fetchKickBolbalEmotes() {
             'FeelsSpecialMan': 'https://files.kick.com/emotes/37365/fullsize',
             'FeelsWarmMan': 'https://files.kick.com/emotes/37366/fullsize',
             'FeelsDankMan': 'https://files.kick.com/emotes/37367/fullsize',
-            'FeelsDonkMan': 'https://files.kick.com/emotes/37368/fullsize'
+                            'FeelsDonkMan': 'https://files.kick.com/emotes/37368/fullsize'
         };
     }
 }
 
-// Function to render user badges
+const defaultKickBadges = {
+    subscriber: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2353FC18"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>',
+    moderator: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2353FC18"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>',
+    broadcaster: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF0000"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>',
+    verified: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300C3FF"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+    founder: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FFD700"><path d="M12 2L2 22h20L12 2zM12 6l5 14H7l5-14z"/></svg>',
+    vip: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23B026FF"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>'
+};
+
 function renderKickBadges(badges) {
-    console.log('[Badge Debug] renderKickBadges called with:', badges);
-    if (!badges || !Array.isArray(badges) || badges.length === 0) {
-        console.log('[Badge Debug] No badges to render');
-        return '';
-    }
-    
-    return badges.map(badge => {
-        console.log('[Badge Debug] Processing badge:', badge);
-        const iconUrl = badge.icon_url || badge.iconUrl || badge.url;
-        const name = badge.name || badge.type || 'Badge';
-        const title = badge.title || badge.name || badge.type || 'Badge';
-        const type = badge.type || badge.name || 'badge';
-        
-        // Handle different badge types with fallback icons
-        let finalIconUrl = iconUrl;
-        if (!finalIconUrl) {
-            switch (type.toLowerCase()) {
-                case 'moderator':
-                case 'mod':
-                    finalIconUrl = 'https://kick.com/img/badges/moderator.svg';
-                    break;
-                case 'subscriber':
-                case 'sub':
-                    finalIconUrl = 'https://kick.com/img/badges/subscriber.svg';
-                    break;
-                case 'verified':
-                    finalIconUrl = 'https://kick.com/img/badges/verified.svg';
-                    break;
-                case 'partner':
-                case 'partnered':
-                    finalIconUrl = 'https://kick.com/img/badges/partner.svg';
-                    break;
-                case 'vip':
-                    finalIconUrl = 'https://kick.com/img/badges/vip.svg';
-                    break;
-                case 'founder':
-                    finalIconUrl = 'https://kick.com/img/badges/founder.svg';
-                    break;
-                case 'broadcaster':
-                case 'streamer':
-                    finalIconUrl = 'https://kick.com/img/badges/broadcaster.svg';
-                    break;
-                case 'admin':
-                case 'administrator':
-                    finalIconUrl = 'https://kick.com/img/badges/admin.svg';
-                    break;
-                case 'staff':
-                    finalIconUrl = 'https://kick.com/img/badges/staff.svg';
-                    break;
-                case 'premium':
-                    finalIconUrl = 'https://kick.com/img/badges/premium.svg';
-                    break;
-                case 'supporter':
-                    finalIconUrl = 'https://kick.com/img/badges/supporter.svg';
-                    break;
-                case 'donator':
-                case 'donor':
-                    finalIconUrl = 'https://kick.com/img/badges/donator.svg';
-                    break;
-                case 'early_supporter':
-                case 'earlysupporter':
-                    finalIconUrl = 'https://kick.com/img/badges/early_supporter.svg';
-                    break;
-                case 'beta_tester':
-                case 'betatester':
-                    finalIconUrl = 'https://kick.com/img/badges/beta_tester.svg';
-                    break;
-                case 'hype_train':
-                case 'hypetrain':
-                    finalIconUrl = 'https://kick.com/img/badges/hype_train.svg';
-                    break;
-                case 'cheer':
-                case 'cheerer':
-                    finalIconUrl = 'https://kick.com/img/badges/cheer.svg';
-                    break;
-                case 'gifter':
-                case 'gift_giver':
-                    finalIconUrl = 'https://kick.com/img/badges/gifter.svg';
-                    break;
-                case 'raider':
-                case 'raid':
-                    finalIconUrl = 'https://kick.com/img/badges/raider.svg';
-                    break;
-                case 'host':
-                case 'hosting':
-                    finalIconUrl = 'https://kick.com/img/badges/host.svg';
-                    break;
-                case 'bot':
-                case 'automod':
-                    finalIconUrl = 'https://kick.com/img/badges/bot.svg';
-                    break;
-                case 'custom':
-                case 'custom_badge':
-                    finalIconUrl = 'https://kick.com/img/badges/custom.svg';
-                    break;
-                default:
-                    // For unknown badges, try to use a generic badge icon
-                    finalIconUrl = 'https://kick.com/img/badges/default.svg';
-                    break;
-            }
+    if (!badges || !badges.length) return '';
+    return badges.map(b => {
+        let badgeType = (b.type || b.name || '').toLowerCase();
+        let src = b.icon_url || b.url || b.iconUrl;
+        if (!src || src === 'undefined') {
+            src = defaultKickBadges[badgeType] || '';
         }
-        
-        return `<img class="kick-badge kick-badge-${type.toLowerCase()}" src="${finalIconUrl}" alt="${name}" title="${title}" style="height:1.2em;vertical-align:middle;margin-right:2px;">`;
+        if (!src) return '';
+        return `<img src="${src}" alt="${b.name || badgeType}" class="kick-badge" title="${b.title || b.name || badgeType}" style="height:1em;vertical-align:middle;margin-right:2px;">`;
     }).join('');
 }
 
