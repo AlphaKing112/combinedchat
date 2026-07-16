@@ -6,6 +6,41 @@ process.env.PUPPETEER_ARGS = '--no-sandbox --disable-setuid-sandbox --disable-de
 
 const express = require('express');
 const { createServer } = require('http');
+// === Twitch Avatar Fetching ===
+const twitchAvatarCache = {};
+async function fetchTwitchAvatar(username) {
+    if (!username) return 'https://static-cdn.jtvnw.net/user-default-pictures-uv/41780b5a-def8-11e9-94d9-784f43822e80-profile_image-70x70.png';
+    username = username.toLowerCase();
+    if (twitchAvatarCache[username]) {
+        return twitchAvatarCache[username];
+    }
+    
+    try {
+        const https = require('https');
+        const url = await new Promise((resolve, reject) => {
+            const req = https.get(`https://decapi.me/twitch/avatar/${username}`, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => resolve(data.trim()));
+            });
+            req.on('error', reject);
+            req.setTimeout(3000, () => { req.abort(); resolve(null); });
+        });
+        
+        if (url && url.startsWith('http')) {
+            twitchAvatarCache[username] = url;
+            return url;
+        }
+    } catch (e) {
+        console.error(`[Twitch Avatar Error] for ${username}:`, e.message);
+    }
+    
+    const fallback = `https://ui-avatars.com/api/?name=${username}&background=random`;
+    twitchAvatarCache[username] = fallback;
+    return fallback;
+}
+
+const startServer = () => {require('socket.io');
 const { Server } = require('socket.io');
 const { TikTokConnectionWrapper, getGlobalConnectionCount } = require('./connectionWrapper');
 const http = require('http');
@@ -440,13 +475,18 @@ io.on('connection', (socket) => {
             socket.emit('twitchDisconnected', 'Error connecting to Twitch channel.');
         });
 
-        twitchChatClient.on('message', (channel, tags, message, self) => {
+        twitchChatClient.on('message', async (channel, tags, message, self) => {
             if (self) return;
+            
+            const username = tags.username || tags['display-name'];
+            const profilePic = await fetchTwitchAvatar(username);
+            
             socket.emit('twitchChat', {
                 channel: channel,
                 tags: tags,
                 message: message,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                profilePic: profilePic
             });
         });
         
