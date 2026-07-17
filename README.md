@@ -8,7 +8,8 @@ A real-time chat reader for TikTok and Kick livestreams. This project lets you v
 
 ## 🌟 Key Features
 
-- **Multi-Platform Chat**: Merge TikTok and Kick chat in one interface
+- **Multi-Platform Chat**: Merge TikTok, Kick, and Twitch chat in one interface
+- **Twitch Moderation**: Built-in context menu for Timeout, Ban, and Delete, VIPs, Warnings, and Emote Picker
 - **Mobile-Friendly**: Responsive design that works perfectly on phones and tablets
 - **OBS Integration**: Generate overlay URLs for streaming software
 - **External Access**: Use No-IP to access from anywhere in the world
@@ -22,6 +23,8 @@ A real-time chat reader for TikTok and Kick livestreams. This project lets you v
 - [zerodytrash/TikTok-Chat-Reader](https://github.com/zerodytrash/TikTok-Chat-Reader) — TikTok chat backend and frontend inspiration
 - [KickEngineering/KickDevDocs](https://github.com/KickEngineering/KickDevDocs) — Official Kick API documentation
 - [@retconned/kick-js](https://github.com/retconned/kick-js) — Node.js library for Kick chat integration
+- [Twitch API](https://dev.twitch.tv/docs/api/) — Official Twitch API documentation
+- [tmi.js](https://tmijs.com/) — Twitch chat library
 - [Socket.IO](https://socket.io/) — Real-time communication
 - [Express](https://expressjs.com/) — Backend server
 - [Axios](https://axios-http.com/) — HTTP requests
@@ -54,7 +57,7 @@ A real-time chat reader for TikTok and Kick livestreams. This project lets you v
 ### **Adding Chat to Your Stream**
 
 1. **Generate Overlay URL**:
-   - Enter TikTok username and/or Kick channel name
+   - Enter TikTok username, Kick channel name, and/or Twitch channel name
    - Click "Generate Overlay URL"
    - Copy the generated URL
 
@@ -76,7 +79,7 @@ A real-time chat reader for TikTok and Kick livestreams. This project lets you v
 
 ### **Example Overlay URL**:
 ```
-http://yourdomain.com/obs.html?username=someuser&kick=somechannel&showLikes=1&showGifts=1&bgColor=rgb(0,0,0)&fontColor=rgb(255,255,255)&fontSize=1.2em
+http://yourdomain.com/obs.html?username=someuser&kick=somechannel&twitch=somechannel&showLikes=1&showGifts=1&bgColor=rgb(0,0,0)&fontColor=rgb(255,255,255)&fontSize=1.2em
 ```
 
 ## 🌐 External Access with No-IP
@@ -128,15 +131,40 @@ cd <your-repo-directory>
 npm install
 ```
 
-3. **Run the server**:
+3. **Set up Twitch Configuration**:
+Rename `.env.example` to `.env` (or create a new `.env` file) and fill in your Twitch API credentials:
+```env
+TWITCH_CLIENT_ID=your_client_id_here
+TWITCH_ACCESS_TOKEN=your_access_token_here
+```
+> **Note**: For Twitch moderation features to work, your access token must include the following scopes:
+> `moderator:manage:banned_users`, `moderator:manage:chat_messages`, `channel:manage:vips`, `moderator:manage:shoutouts`, `moderator:manage:warnings`, `user:write:chat`
+
+4. **Run the server**:
 ```bash
-node server.js
+npm start
+# or node server.js
 ```
 
-4. **Access the application**:
+5. **Access the application**:
 - **Local**: [http://localhost:8081](http://localhost:8081)
 - **Network**: `http://[YOUR_IP]:8081`
 - **External**: `http://yourname.ddns.net:8081` (after No-IP setup)
+
+### **Deploying to Render (Cloud Hosting)**
+
+To host this application 24/7 on the internet for free using Render:
+1. Push this project repository to GitHub.
+2. Go to [Render.com](https://render.com) and create an account.
+3. Click **New +** and select **Web Service**.
+4. Connect your GitHub account and select this repository.
+5. Configure the web service:
+   - **Build Command**: `npm install`
+   - **Start Command**: `node server.js`
+6. Scroll down to **Environment Variables** and add your Twitch credentials:
+   - Key: `TWITCH_CLIENT_ID` | Value: `your_client_id`
+   - Key: `TWITCH_ACCESS_TOKEN` | Value: `your_access_token`
+7. Click **Create Web Service**. Render will automatically build and host your chat reader on a public URL!
 
 ## 📖 Usage Guide
 
@@ -152,10 +180,16 @@ node server.js
    - Click "Connect" to view Kick chat and stats
    - See real-time messages, emotes, and stream information
 
-3. **Multi-Platform**:
-   - Connect to both TikTok and Kick simultaneously
-   - Chat messages are color-coded (TikTok: blue, Kick: green)
-   - Stats are displayed for both platforms
+3. **Twitch Chat & Moderation**:
+   - Enter a Twitch channel name
+   - Click "Connect" to view Twitch chat and stats
+   - Click the Emote button (😀) to pick from custom channel and global emotes
+   - Click any Twitch username to open the Moderation Menu (Timeout, Ban, Delete Message, VIP, Warning, Shoutout)
+
+4. **Multi-Platform**:
+   - Connect to TikTok, Kick, and Twitch simultaneously
+   - Chat messages are color-coded and marked with platform icons
+   - Stats are displayed for all platforms
 
 ### **Advanced Features**
 

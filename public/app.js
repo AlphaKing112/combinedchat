@@ -560,15 +560,76 @@ $(document).ready(() => {
             setLiveDot('twitchDot', true);
             $('#twitchConnectButton').val('disconnect');
             $('#stateText').text(`Connected to Twitch: ${data.channelName}`);
+            $('#chatInputContainer').css('display', 'flex');
         });
 
         window.connection.socket.on('twitchDisconnected', function(reason) {
             console.log('[Twitch] Disconnected:', reason);
             setLiveDot('twitchDot', false);
             $('#twitchConnectButton').val('connect');
+            $('#chatInputContainer').hide();
         });
 
+        function parseTwitchEmotes(message, emotes) {
+            if (!emotes) return sanitize(message);
+
+            let replacements = [];
+            
+            if (typeof emotes === 'string') {
+                const emoteBlocks = emotes.split('/');
+                emoteBlocks.forEach(block => {
+                    const [id, positions] = block.split(':');
+                    if (!positions) return;
+                    
+                    positions.split(',').forEach(pos => {
+                        const [start, end] = pos.split('-');
+                        replacements.push({
+                            id: id,
+                            start: parseInt(start, 10),
+                            end: parseInt(end, 10)
+                        });
+                    });
+                });
+            } else if (typeof emotes === 'object') {
+                // Some libraries parse emotes into an object: { "25": ["0-4", "12-16"] }
+                for (const id in emotes) {
+                    emotes[id].forEach(pos => {
+                        const [start, end] = pos.split('-');
+                        replacements.push({
+                            id: id,
+                            start: parseInt(start, 10),
+                            end: parseInt(end, 10)
+                        });
+                    });
+                }
+            }
+
+            replacements.sort((a, b) => a.start - b.start);
+            
+            let parts = [];
+            let currentIndex = 0;
+            
+            for (const rep of replacements) {
+                if (rep.start >= currentIndex) {
+                    const textBefore = message.substring(currentIndex, rep.start);
+                    if (textBefore) parts.push(sanitize(textBefore));
+                    
+                    const imgUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${rep.id}/default/dark/1.0`;
+                    parts.push(`<img src="${imgUrl}" class="emote-img" style="vertical-align: middle; height: 28px;">`);
+                    
+                    currentIndex = rep.end + 1;
+                }
+            }
+            
+            if (currentIndex < message.length) {
+                parts.push(sanitize(message.substring(currentIndex)));
+            }
+            
+            return parts.join('');
+        }
+
         window.connection.socket.on('twitchChat', function(data) {
+            window.currentTwitchRoomId = data.tags && data.tags['room-id'] ? data.tags['room-id'] : window.currentTwitchRoomId;
             let color = data.tags && data.tags.color ? data.tags.color : '#9146FF';
             let displayName = data.tags && data.tags['display-name'] ? data.tags['display-name'] : data.username;
             
@@ -586,11 +647,14 @@ $(document).ready(() => {
                 profilePicHtml = `<img src="${data.profilePic}" class="miniprofilepicture" style="border: 2px solid #9146FF !important;">`;
             }
 
+            let safeDisplayName = sanitize(displayName).replace(/'/g, "\\'");
+            const parsedMessage = parseTwitchEmotes(data.message, data.tags.emotes);
+            
             const twitchMessage = `<div class="twitch-message">
                 <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 512 512"><path fill="#9146FF" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73c-15.1 14.3-30 14.3-58 14.3H236.6l-77.3 73.1v-73.1H91.9V36.6h357.2z"/></svg>
                 ${profilePicHtml}
-                ${badgeHtml}<b style="color: ${color};">${sanitize(displayName)}:</b>
-                <span>${sanitize(data.message)}</span>
+                ${badgeHtml}<b style="color: ${color}; cursor: pointer;" onclick="showTwitchContextMenu(event, '${data.tags['user-id']}', '${data.tags['room-id']}', '${data.tags.id}', '${safeDisplayName}')">${sanitize(displayName)}:</b>
+                <span>${parsedMessage}</span>
             </div>`;
             
             const isMainChat = $('.chatcontainer').length > 0;
@@ -1499,4 +1563,222 @@ function updateKickLiveDotFromStats(data) {
 $(document).ready(() => {
     // ... existing code ...
 
+});
+
+// === TWITCH MODERATION CONTEXT MENU ===
+let currentTwitchContextMenuData = null;
+
+function showTwitchContextMenu(event, userId, roomId, messageId, username) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    currentTwitchContextMenuData = { userId, roomId, messageId, username };
+    
+    const menu = $('#twitchContextMenu');
+    $('#contextMenuHeader').text(username);
+    
+    menu.css({
+        top: event.pageY + 'px',
+        left: event.pageX + 'px',
+        display: 'block'
+    });
+}
+
+function moderateTwitch(action, duration = null) {
+    if (!currentTwitchContextMenuData) return;
+    
+    const { userId, roomId, messageId } = currentTwitchContextMenuData;
+    $('#twitchContextMenu').hide();
+    
+    fetch('/api/twitch/moderate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: action,
+            targetUserId: userId,
+            broadcasterId: roomId,
+            messageId: messageId,
+            duration: duration
+        })
+    }).then(res => res.json())
+      .then(data => {
+          if (data.error) alert('Moderation Error: ' + data.error);
+          else console.log('Moderation action successful:', action);
+      })
+      .catch(err => alert('Failed to moderate: ' + err.message));
+}
+
+// Hide context menu when clicking outside
+$(document).click(function() {
+    $('#twitchContextMenu').hide();
+});
+
+// === TWITCH CHAT SEND & REPLY ===
+let replyParentMessageId = null;
+
+function prepareReply() {
+    if (!currentTwitchContextMenuData) return;
+    
+    replyParentMessageId = currentTwitchContextMenuData.messageId;
+    $('#replyUsername').text('@' + currentTwitchContextMenuData.username);
+    $('#replyIndicator').show();
+    $('#twitchContextMenu').hide();
+    
+    // Show chat input container and focus
+    $('#chatInputContainer').css('display', 'flex');
+    $('#chatInput').focus();
+}
+
+function cancelReply() {
+    replyParentMessageId = null;
+    $('#replyIndicator').hide();
+    $('#chatInput').focus();
+}
+
+function handleChatInputKeyPress(e) {
+    if (e.key === 'Enter') {
+        sendTwitchChat();
+    }
+}
+
+function sendTwitchChat() {
+    const input = $('#chatInput');
+    const msg = input.val().trim();
+    if (!msg) return;
+    
+    // Disable input while sending
+    input.prop('disabled', true);
+    $('#sendChatBtn').prop('disabled', true);
+    
+    fetch('/api/twitch/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            broadcasterId: (currentTwitchContextMenuData && replyParentMessageId) ? currentTwitchContextMenuData.roomId : window.currentTwitchRoomId,
+            message: msg,
+            replyMessageId: replyParentMessageId
+        })
+    }).then(res => res.json())
+      .then(data => {
+          if (data.error) {
+              alert('Chat Error: ' + data.error);
+          } else {
+              input.val('');
+              cancelReply();
+          }
+      })
+      .catch(err => alert('Failed to send chat: ' + err.message))
+      .finally(() => {
+          input.prop('disabled', false);
+          $('#sendChatBtn').prop('disabled', false);
+          input.focus();
+      });
+}
+
+// === CHAT HOVER PAUSE ===
+let isChatHovered = false;
+
+$(document).ready(() => {
+    // Chat input container is hidden by default and shown when Twitch connects
+
+    $('.chatcontainer').on('mouseenter', function() {
+        isChatHovered = true;
+        shouldAutoScroll = false;
+        
+        // Show paused indicator if not at bottom
+        if (this.scrollHeight - this.scrollTop - this.clientHeight > SCROLL_MARGIN) {
+            let indicator = $('.chat-paused-indicator');
+            if (indicator.length === 0) {
+                indicator = $('<div class="chat-paused-indicator">Chat Paused</div>');
+                $(this).parent().append(indicator);
+            }
+            indicator.fadeIn(200);
+        }
+    }).on('mouseleave', function() {
+        isChatHovered = false;
+        $('.chat-paused-indicator').fadeOut(200);
+        
+        // Only resume auto scroll if we didn't manually scroll way up
+        if (this.scrollHeight - this.scrollTop - this.clientHeight < SCROLL_MARGIN * 2) {
+            shouldAutoScroll = true;
+            this.scrollTop = this.scrollHeight;
+        }
+    });
+});
+
+// === EMOTE PICKER LOGIC ===
+let emotesLoaded = false;
+
+function toggleEmotePicker() {
+    const picker = $('#emotePicker');
+    if (picker.is(':visible')) {
+        picker.hide();
+    } else {
+        picker.show();
+        if (!emotesLoaded && window.currentTwitchRoomId) {
+            loadEmotes(window.currentTwitchRoomId);
+        }
+    }
+}
+
+function loadEmotes(broadcasterId) {
+    $('#channelEmotesGrid').html('<div style="color: #aaa; font-size: 12px;">Loading...</div>');
+    $('#globalEmotesGrid').html('<div style="color: #aaa; font-size: 12px;">Loading...</div>');
+    
+    fetch(`/api/twitch/emotes/${broadcasterId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            renderEmoteGrid('#channelEmotesGrid', data.channelEmotes);
+            renderEmoteGrid('#globalEmotesGrid', data.globalEmotes);
+            emotesLoaded = true;
+        })
+        .catch(err => {
+            $('#channelEmotesGrid').html(`<div style="color: #ff5555; font-size: 12px;">Failed to load emotes: ${err.message}</div>`);
+            $('#globalEmotesGrid').html('');
+        });
+}
+
+function renderEmoteGrid(containerSelector, emotesArray) {
+    const container = $(containerSelector);
+    container.empty();
+    
+    if (!emotesArray || emotesArray.length === 0) {
+        container.html('<div style="color: #aaa; font-size: 12px;">No emotes found.</div>');
+        return;
+    }
+    
+    emotesArray.forEach(emote => {
+        let imgUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/1.0`;
+        const img = $(`<img class="emote-img" src="${imgUrl}" title="${emote.name}" alt="${emote.name}">`);
+        img.click(() => insertEmote(emote.name));
+        container.append(img);
+    });
+}
+
+function insertEmote(emoteName) {
+    const input = $('#chatInput');
+    const currentVal = input.val();
+    const cursorPosition = input.prop('selectionStart') || currentVal.length;
+    
+    const textBefore = currentVal.substring(0, cursorPosition);
+    const textAfter = currentVal.substring(cursorPosition, currentVal.length);
+    const spaceBefore = (textBefore.length === 0 || textBefore.endsWith(' ')) ? '' : ' ';
+    const spaceAfter = (textAfter.length === 0 || textAfter.startsWith(' ')) ? '' : ' ';
+    
+    const newVal = textBefore + spaceBefore + emoteName + spaceAfter + textAfter;
+    input.val(newVal);
+    
+    const newCursorPos = cursorPosition + spaceBefore.length + emoteName.length + spaceAfter.length;
+    input.focus();
+    input[0].setSelectionRange(newCursorPos, newCursorPos);
+}
+
+// Hide emote picker if clicked outside
+$(document).click(function(event) {
+    if (!$(event.target).closest('#emotePicker, #toggleEmotePickerBtn').length) {
+        if ($('#emotePicker').is(':visible')) {
+            $('#emotePicker').hide();
+        }
+    }
 });

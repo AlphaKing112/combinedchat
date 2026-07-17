@@ -110,6 +110,25 @@
                 <div class="chatcontainer">
                     <h3 class="containerheader">Chats</h3>
                 </div>
+                <!-- Chat Input Box -->
+                <div id="chatInputContainer" style="display: none; background: #2a2a2a; padding: 10px; border-top: 1px solid #444; position: relative; flex-direction: column;">
+                    <div id="replyIndicator" style="display: none; font-size: 0.8em; color: #aaa; margin-bottom: 5px;">
+                        Replying to <span id="replyUsername" style="color: #9146FF; font-weight: bold;"></span> 
+                        <span style="cursor: pointer; float: right; color: #ff5555; font-weight: bold;" onclick="cancelReply()">✕</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; position: relative; justify-content: center; align-items: center; width: 100%; margin: 0 auto; box-sizing: border-box;">
+                        <input type="text" id="chatInput" placeholder="Send a message to Twitch..." style="width: 800px; max-width: 90vw; padding: 12px 15px; border-radius: 6px; border: 1px solid #444; background: #1a1a1a; color: white; outline: none; font-size: 16px; box-sizing: border-box;" autocomplete="off" onkeypress="handleChatInputKeyPress(event)">
+                        <button id="toggleEmotePickerBtn" onclick="toggleEmotePicker()" style="background: transparent; color: #aaa; border: none; padding: 0 5px; font-size: 1.4em; cursor: pointer; transition: color 0.2s;">😀</button>
+                        <button id="sendChatBtn" onclick="sendTwitchChat()" style="background: #9146FF; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">Send</button>
+                    </div>
+                    <!-- Emote Picker Window -->
+                    <div id="emotePicker" class="custom-scrollbar" style="display: none; position: absolute; bottom: calc(100% + 10px); right: 10px; background: #1f1f23; border: 1px solid #444; border-radius: 6px; padding: 10px; width: 300px; max-height: 250px; overflow-y: auto; z-index: 2000; box-shadow: 0 -4px 10px rgba(0,0,0,0.5);">
+                        <h4 style="margin: 0 0 10px 0; color: #efeff1; font-size: 14px; text-align: left;">Channel Emotes</h4>
+                        <div id="channelEmotesGrid" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                        <h4 style="margin: 15px 0 10px 0; color: #efeff1; font-size: 14px; text-align: left;">Global Emotes</h4>
+                        <div id="globalEmotesGrid" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                    </div>
+                </div>
                 <!-- Scroll to bottom button -->
                 <button id="scrollToBottomBtn" style="position: fixed; bottom: 20px; right: 20px; background: #1db954; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 20px; cursor: pointer; display: none; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.3);" onclick="scrollToBottom()">↓</button>
             </td>
@@ -154,5 +173,18 @@ function generateOverlay() {
 
 
 </script>
+    <div id="twitchContextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-header" id="contextMenuHeader">Username</div>
+        <div class="context-menu-item" onclick="prepareReply()">Reply to Message</div>
+        <div class="context-menu-item" onclick="moderateTwitch('shoutout')">Shoutout</div>
+        <div class="context-menu-item" onclick="moderateTwitch('vip')">Give/Remove VIP</div>
+        <div class="context-menu-item" onclick="moderateTwitch('warning')">Issue Warning</div>
+        <div style="border-top: 1px solid #444; margin: 5px 0;"></div>
+        <div class="context-menu-item" onclick="moderateTwitch('timeout', 60)" style="color: #ffaa00;">Timeout (1m)</div>
+        <div class="context-menu-item" onclick="moderateTwitch('timeout', 600)" style="color: #ffaa00;">Timeout (10m)</div>
+        <div class="context-menu-item" onclick="moderateTwitch('timeout', 3600)" style="color: #ffaa00;">Timeout (1h)</div>
+        <div class="context-menu-item" onclick="moderateTwitch('delete')" style="color: #ffaa00;">Delete Message</div>
+        <div class="context-menu-item" onclick="moderateTwitch('ban')" style="color: #ff5555;">Ban User</div>
+    </div>
 </body>
 </html>
