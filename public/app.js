@@ -1632,7 +1632,7 @@ function createTwitchClip() {
     
     // Open the window synchronously to bypass browser popup blockers!
     const clipWindow = window.open('', '_blank');
-    clipWindow.document.write('<body style="background:#1a1a1a;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;"><h2>Creating your clip with Twitch...</h2></body>');
+    clipWindow.document.write('<body style="background:#1a1a1a;color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;"><h2 id="clip-status">Creating your clip with Twitch...</h2><div id="clip-link"></div></body>');
     
     fetch('/api/twitch/clip/' + encodeURIComponent(currentTwitchChannelName), {
         method: 'POST'
@@ -1641,10 +1641,12 @@ function createTwitchClip() {
     .then(data => {
         $('#twitchClipButton').prop('disabled', false).val('Clip Stream 🎬');
         if (data.error || data.message) {
-            clipWindow.close();
-            alert('Failed to create clip: ' + (data.message || data.error));
+            clipWindow.document.getElementById('clip-status').innerText = 'Failed to create clip: ' + (data.message || data.error);
+            clipWindow.document.getElementById('clip-status').style.color = '#ff5555';
         } else if (data.edit_url) {
-            clipWindow.location.href = data.edit_url;
+            clipWindow.document.getElementById('clip-status').innerText = 'Clip Created Successfully!';
+            clipWindow.document.getElementById('clip-status').style.color = '#55ff55';
+            clipWindow.document.getElementById('clip-link').innerHTML = `<br><a href="${data.edit_url}" style="color:#bf94ff;font-size:24px;text-decoration:none;border:2px solid #bf94ff;padding:12px 24px;border-radius:8px;font-weight:bold;">Click here to edit your clip 🎬</a>`;
         }
     })
     .catch(err => {
