@@ -473,9 +473,27 @@ io.on('connection', (socket) => {
             channels: [ channelName ]
         });
 
-        twitchChatClient.connect().then(() => {
+        twitchChatClient.connect().then(async () => {
             console.log(`[Twitch] Connected to ${channelName}`);
-            socket.emit('twitchConnected', { channelName });
+            
+            let roomId = null;
+            try {
+                if (process.env.TWITCH_CLIENT_ID && process.env.TWITCH_ACCESS_TOKEN) {
+                    const userRes = await axios.get(`https://api.twitch.tv/helix/users?login=${channelName}`, {
+                        headers: {
+                            'Client-ID': process.env.TWITCH_CLIENT_ID,
+                            'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+                        }
+                    });
+                    if (userRes.data && userRes.data.data && userRes.data.data.length > 0) {
+                        roomId = userRes.data.data[0].id;
+                    }
+                }
+            } catch (err) {
+                console.error(`[Twitch] Failed to fetch roomId for ${channelName}:`, err.message);
+            }
+
+            socket.emit('twitchConnected', { channelName, roomId });
         }).catch((err) => {
             console.error(`[Twitch] Connection error for ${channelName}:`, err);
             socket.emit('twitchDisconnected', 'Error connecting to Twitch channel.');
@@ -696,6 +714,38 @@ app.get('/api/twitch/emotes/:broadcasterId', async (req, res) => {
     } catch (error) {
         console.error('[Twitch] Emotes Fetch Error:', error.response?.data || error.message);
         return res.status(500).json({ error: error.response?.data?.message || error.message });
+    }
+});
+
+// TWITCH CLIP ENDPOINT
+app.post('/api/twitch/clip/:channelName', async (req, res) => {
+    const { channelName } = req.params;
+    
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
+        return res.status(400).json({ error: 'Twitch credentials not configured in server' });
+    }
+
+    try {
+        const headers = {
+            'Client-ID': process.env.TWITCH_CLIENT_ID,
+            'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Fetch broadcaster ID first
+        const userRes = await axios.get(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(channelName)}`, { headers });
+        if (!userRes.data || !userRes.data.data || userRes.data.data.length === 0) {
+            return res.status(404).json({ error: 'Twitch channel not found' });
+        }
+        const broadcasterId = userRes.data.data[0].id;
+
+        // Create clip
+        const response = await axios.post(`https://api.twitch.tv/helix/clips?broadcaster_id=${broadcasterId}`, {}, { headers });
+        
+        return res.json(response.data.data[0]);
+    } catch (error) {
+        console.error('[Twitch] Clip Error:', error.response?.data || error.message);
+        return res.status(error.response?.status || 500).json(error.response?.data || { message: error.message });
     }
 });
 

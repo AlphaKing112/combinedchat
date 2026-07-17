@@ -24,6 +24,7 @@ let idComment = undefined;
 let bannedUserSpam = []
 
 let currentKickChannel = null;
+let currentTwitchChannelName = null;
 let kickChatReady = false;
 
 // Global Kick emotes cache
@@ -555,12 +556,18 @@ $(document).ready(() => {
         });
         
         // TWITCH CHAT HANDLING
+
         window.connection.socket.on('twitchConnected', function(data) {
             console.log('[Twitch] Connected:', data);
             setLiveDot('twitchDot', true);
             $('#twitchConnectButton').val('disconnect');
             $('#stateText').text(`Connected to Twitch: ${data.channelName}`);
             $('#chatInputContainer').css('display', 'flex');
+            $('#twitchClipButton').show();
+            
+            if (data.channelName) {
+                currentTwitchChannelName = data.channelName;
+            }
         });
 
         window.connection.socket.on('twitchDisconnected', function(reason) {
@@ -568,6 +575,8 @@ $(document).ready(() => {
             setLiveDot('twitchDot', false);
             $('#twitchConnectButton').val('connect');
             $('#chatInputContainer').hide();
+            $('#twitchClipButton').hide();
+            currentTwitchChannelName = null;
         });
 
         function parseTwitchEmotes(message, emotes) {
@@ -1612,6 +1621,38 @@ function moderateTwitch(action, duration = null) {
 $(document).click(function() {
     $('#twitchContextMenu').hide();
 });
+
+function createTwitchClip() {
+    if (!currentTwitchChannelName) {
+        alert("Twitch channel name not available. Make sure you are connected to Twitch.");
+        return;
+    }
+    
+    $('#twitchClipButton').prop('disabled', true).val('Clipping... ⏳');
+    
+    // Open the window synchronously to bypass browser popup blockers!
+    const clipWindow = window.open('', '_blank');
+    clipWindow.document.write('<body style="background:#1a1a1a;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;"><h2>Creating your clip with Twitch...</h2></body>');
+    
+    fetch('/api/twitch/clip/' + encodeURIComponent(currentTwitchChannelName), {
+        method: 'POST'
+    })
+    .then(res => res.json())
+    .then(data => {
+        $('#twitchClipButton').prop('disabled', false).val('Clip Stream 🎬');
+        if (data.error || data.message) {
+            clipWindow.close();
+            alert('Failed to create clip: ' + (data.message || data.error));
+        } else if (data.edit_url) {
+            clipWindow.location.href = data.edit_url;
+        }
+    })
+    .catch(err => {
+        $('#twitchClipButton').prop('disabled', false).val('Clip Stream 🎬');
+        clipWindow.close();
+        alert('Error creating clip: ' + err.message);
+    });
+}
 
 // === TWITCH CHAT SEND & REPLY ===
 let replyParentMessageId = null;

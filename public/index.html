@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tiktok/Kick Chat Reader</title>
+    <title>Combined Chat Reader</title>
 
     <meta name="description" content="A chat reader for TikTok LIVE utilizing TikTok-Live-Connector and Socket.IO to forward the data to the client. This demo project uses the unofficial TikTok API to retrieve chat comments, gifts and other events from TikTok LIVE.">
     <meta name="keywords" content="TikTok,Live,Livestream,Chat,Reader,Scraper,Tracker,tiktok.com,broadcast,api,library,node,node.js,javascript">
@@ -19,7 +19,7 @@
 </head>
 <body>
     <div class="head">
-        <h1>Tiktok/Kick Chat Reader</h1>
+        <h1>Combined Chat Reader</h1>
         <div id="liveStatusContainer" style="display:flex;align-items:center;justify-content:center;gap:18px;margin-top:10px;">
             <div id="tiktokLiveStatus" style="display:flex;align-items:center;gap:6px;">
                 <span class="live-dot" id="tiktokDot"></span>
@@ -54,6 +54,7 @@
         <input type="text" id="twitchInput" placeholder="Twitch channel name" autocomplete="off">
         <input type="button" id="twitchConnectButton" value="connect">
         <input type="button" id="twitchPlayerButton" value="Watch Stream" onclick="toggleTwitchPlayer()" style="display: none; margin-left: 10px; background-color: #9146FF; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+        <input type="button" id="twitchClipButton" value="Clip Stream 🎬" onclick="createTwitchClip()" style="display: none; margin-left: 10px; background-color: #ffaa00; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
         <br>
     </div>
     

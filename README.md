@@ -137,8 +137,8 @@ Rename `.env.example` to `.env` (or create a new `.env` file) and fill in your T
 TWITCH_CLIENT_ID=your_client_id_here
 TWITCH_ACCESS_TOKEN=your_access_token_here
 ```
-> **Note**: For Twitch moderation features to work, your access token must include the following scopes:
-> `moderator:manage:banned_users`, `moderator:manage:chat_messages`, `channel:manage:vips`, `moderator:manage:shoutouts`, `moderator:manage:warnings`, `user:write:chat`
+> **Note**: For Twitch moderation and clip features to work, your access token must include the following scopes:
+> `moderator:manage:banned_users`, `moderator:manage:chat_messages`, `channel:manage:vips`, `moderator:manage:shoutouts`, `moderator:manage:warnings`, `user:write:chat`, `clips:edit`
 
 4. **Run the server**:
 ```bash
