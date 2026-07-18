@@ -901,6 +901,7 @@ function updateRoomStats() {
 // State variables for Twitch Player
 let twitchPlayer = null;
 let isTwitchPlayerShowing = false;
+let isKickPlayerShowing = false;
 window.currentTwitchRoomId = null;
 
 // Ad Tracking Variables
@@ -982,6 +983,28 @@ function toggleTwitchPlayer() {
             $('#twitchPlayerContainer').empty();
             twitchPlayer = null;
         }
+    }
+}
+
+function toggleKickPlayer() {
+    isKickPlayerShowing = !isKickPlayerShowing;
+    
+    if (isKickPlayerShowing) {
+        $('#kickPlayerContainer').show();
+        $('#kickPlayerButton').val('Hide Stream');
+        $('#kickPlayerButton').css('background-color', '#555');
+        $('#kickPlayerButton').css('color', 'white');
+        
+        if (currentKickChannel) {
+            $('#kickPlayerContainer').html(`<iframe src="https://player.kick.com/${currentKickChannel}" height="100%" width="100%" frameborder="0" scrolling="no" allowfullscreen="true"></iframe>`);
+        }
+    } else {
+        $('#kickPlayerContainer').hide();
+        $('#kickPlayerButton').val('Watch Stream');
+        $('#kickPlayerButton').css('background-color', '#53fc18');
+        $('#kickPlayerButton').css('color', 'black');
+        
+        $('#kickPlayerContainer').empty();
     }
 }
 
@@ -1408,8 +1431,9 @@ $(document).ready(function() {
 
     window.connection.socket.on('kickConnected', function(data) {
         console.log('[Kick] Connected to', data.channelSlug);
-        $('#stateText').text('Connected to Kick stats! (Chat coming soon with official API)');
+        $('#stateText').text('Connected to Kick!');
         $('#kickConnectButton').val('disconnect');
+        $('#kickPlayerButton').show();
         kickChatReady = true;
         attachChatScrollHandler(); // Re-attach scroll handler after clearing chat
         
@@ -1667,6 +1691,11 @@ $(document).ready(function() {
         setLiveDot('kickDot', false);
         kickChatReady = false;
         $('#kickConnectButton').val('connect');
+        $('#kickPlayerButton').hide();
+        if (typeof toggleKickPlayer === 'function' && isKickPlayerShowing) {
+            toggleKickPlayer();
+        }
+        currentKickChannel = null;
     });
 
     window.connection.socket.on('updateKickAvatar', function(data) {
