@@ -69,66 +69,65 @@
                 <span style="font-size: 1.2em;">🎨</span> OBS Overlay Customization
             </h3>
             <span style="color: #aaa; font-size: 0.85em;">▼ click to expand</span>
-        </div>
-        <div id="overlayPanelBody" style="display: none; margin-top: 14px;">
+                <div id="overlayPanelBody" style="display: none; margin-top: 14px;">
             <!-- Google Fonts preload for previews -->
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Outfit&family=Poppins&family=Nunito&family=Montserrat&family=Oswald&family=Bebas+Neue&display=swap" rel="stylesheet">
 
-            <!-- Row 1: Background + Text Color -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
-                <div style="min-width: 0;">
-                    <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Background Color</label>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="color" id="overlayBgColor" value="#18171c" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0;" oninput="document.getElementById('overlayBgColorHex').value = this.value; saveOverlaySettings();">
-                        <input type="text" id="overlayBgColorHex" value="#18171c" placeholder="#18171c" style="width: 100%; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayBgColor').value = this.value; saveOverlaySettings();">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <!-- Column 1: Colors -->
+                <div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Background Color</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="color" id="overlayBgColor" value="#18171c" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0;" oninput="document.getElementById('overlayBgColorHex').value = this.value; saveOverlaySettings();">
+                            <input type="text" id="overlayBgColorHex" value="#18171c" placeholder="#18171c" style="width: 100%; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayBgColor').value = this.value; saveOverlaySettings();">
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 8px;">
+                            <input type="checkbox" id="overlayTransparent" style="width:14px;height:14px;cursor:pointer;" onchange="updateBgColorFromToggle(); saveOverlaySettings();">
+                            <span style="color: #aaa; font-size: 0.85em;">Transparent Background</span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Text Color</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="color" id="overlayFontColor" value="#e3e5eb" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0;" oninput="document.getElementById('overlayFontColorHex').value = this.value; saveOverlaySettings();">
+                            <input type="text" id="overlayFontColorHex" value="#e3e5eb" placeholder="#e3e5eb" style="width: 100%; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayFontColor').value = this.value; saveOverlaySettings();">
+                        </div>
                     </div>
                 </div>
-                <div style="min-width: 0;">
-                    <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Text Color</label>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="color" id="overlayFontColor" value="#e3e5eb" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0;" oninput="document.getElementById('overlayFontColorHex').value = this.value; saveOverlaySettings();">
-                        <input type="text" id="overlayFontColorHex" value="#e3e5eb" placeholder="#e3e5eb" style="width: 100%; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayFontColor').value = this.value; saveOverlaySettings();">
+
+                <!-- Column 2: Typography -->
+                <div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Font</label>
+                        <select id="overlayFont" onchange="saveOverlaySettings()" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
+                            <option value="Inter, sans-serif" style="font-family: Inter, sans-serif;">Inter</option>
+                            <option value="'Roboto', sans-serif" style="font-family: 'Roboto', sans-serif;">Roboto</option>
+                            <option value="'Outfit', sans-serif" style="font-family: 'Outfit', sans-serif;">Outfit</option>
+                            <option value="'Poppins', sans-serif" style="font-family: 'Poppins', sans-serif;">Poppins</option>
+                            <option value="'Nunito', sans-serif" style="font-family: 'Nunito', sans-serif;">Nunito</option>
+                            <option value="'Montserrat', sans-serif" style="font-family: 'Montserrat', sans-serif;">Montserrat</option>
+                            <option value="'Oswald', sans-serif" style="font-family: 'Oswald', sans-serif;">Oswald</option>
+                            <option value="'Bebas Neue', cursive" style="font-family: 'Bebas Neue', cursive;">Bebas Neue</option>
+                            <option value="Georgia, serif" style="font-family: Georgia, serif;">Georgia</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Font Size</label>
+                        <select id="overlayFontSize" onchange="saveOverlaySettings()" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
+                            <option value="0.9em">Small</option>
+                            <option value="1.1em">Medium</option>
+                            <option value="1.3em" selected>Default</option>
+                            <option value="1.6em">Large</option>
+                            <option value="2em">X-Large</option>
+                            <option value="2.5em">XX-Large</option>
+                        </select>
                     </div>
                 </div>
             </div>
-
-            <!-- Row 2: Toggles: Transparent BG -->
-            <div style="display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: #1c1e29; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; transition: border-color 0.2s;" onmouseover="this.style.borderColor='#58a6ff'" onmouseout="this.style.borderColor='#444'">
-                    <input type="checkbox" id="overlayTransparent" style="width:16px;height:16px;cursor:pointer;" onchange="updateBgColorFromToggle(); saveOverlaySettings();">
-                    <span style="color: #e3e5eb; font-size: 0.9em;">🔲 Transparent Background</span>
-                </label>
-            </div>
-
-            <!-- Row 3: Font Picker with live previews -->
-            <div style="margin-bottom: 14px;">
-                <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 8px;">Font</label>
-                <div id="fontPickerGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                    <div class="font-option" data-font="Inter, sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: Inter, sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid #58a6ff; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Inter — Hello World</div>
-                    <div class="font-option" data-font="'Roboto', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Roboto', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Roboto — Hello World</div>
-                    <div class="font-option" data-font="'Outfit', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Outfit', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Outfit — Hello World</div>
-                    <div class="font-option" data-font="'Poppins', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Poppins', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Poppins — Hello World</div>
-                    <div class="font-option" data-font="'Nunito', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Nunito', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Nunito — Hello World</div>
-                    <div class="font-option" data-font="'Montserrat', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Montserrat', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Montserrat — Hello World</div>
-                    <div class="font-option" data-font="'Oswald', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Oswald', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Oswald — Hello World</div>
-                    <div class="font-option" data-font="'Bebas Neue', cursive" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Bebas Neue', cursive; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Bebas Neue — HELLO WORLD</div>
-                    <div class="font-option" data-font="Georgia, serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: Georgia, serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Georgia — Hello World</div>
-                </div>
-                <input type="hidden" id="overlayFont" value="Inter, sans-serif">
-            </div>
-
-            <!-- Row 4: Font Size -->
-            <div style="margin-bottom: 16px;">
-                <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Font Size</label>
-                <select id="overlayFontSize" onchange="saveOverlaySettings()" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
-                    <option value="0.9em">Small</option>
-                    <option value="1.1em">Medium</option>
-                    <option value="1.3em" selected>Default</option>
-                    <option value="1.6em">Large</option>
-                    <option value="2em">X-Large</option>
-                    <option value="2.5em">XX-Large</option>
-                </select>
             </div>
 
             <!-- Buttons -->
@@ -170,14 +169,6 @@
                             }
                             if (settings.font) {
                                 document.getElementById('overlayFont').value = settings.font;
-                                // Highlight the correct font option
-                                document.querySelectorAll('.font-option').forEach(f => {
-                                    if (f.getAttribute('data-font') === settings.font) {
-                                        f.style.border = '2px solid #58a6ff';
-                                    } else {
-                                        f.style.border = '2px solid transparent';
-                                    }
-                                });
                             }
                             if (settings.fontSize) {
                                 document.getElementById('overlayFontSize').value = settings.fontSize;
@@ -277,14 +268,6 @@ function buildOverlayUrl() {
     params.push('showGifts=1');
 
     return { url: url + params.join('&'), hasChannel: !!(tiktokUsername || kickChannel || twitchChannel) };
-}
-
-function selectFont(el) {
-    document.querySelectorAll('.font-option').forEach(function(f) {
-        f.style.border = '2px solid transparent';
-    });
-    el.style.border = '2px solid #58a6ff';
-    document.getElementById('overlayFont').value = el.getAttribute('data-font');
 }
 
 function updateBgColorFromToggle() {
