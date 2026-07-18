@@ -897,9 +897,27 @@ async function fetchKickAvatar(username) {
     }
     const fallbackUrl = `https://kick.com/img/default-profile-pictures/default-avatar-${defaultNum}.webp`;
     
-    // Cloudflare blocks headless Puppeteer on Kick, which causes massive timeouts 
-    // and dropped chat messages in the chat rendering loop. 
-    // We immediately return the fallback avatar to keep chat fast and responsive.
+    if (!username) return fallbackUrl;
+    
+    const lowerUser = username.toLowerCase();
+    if (kickAvatarCache.has(lowerUser)) {
+        return kickAvatarCache.get(lowerUser);
+    }
+
+    try {
+        const axios = require('axios');
+        // Use allorigins to bypass Kick's Cloudflare protection for the API
+        const res = await axios.get(`https://api.allorigins.win/raw?url=https://kick.com/api/v2/channels/${encodeURIComponent(lowerUser)}`, { timeout: 3000 });
+        if (res.data && res.data.user && res.data.user.profile_pic) {
+            kickAvatarCache.set(lowerUser, res.data.user.profile_pic);
+            return res.data.user.profile_pic;
+        }
+    } catch (e) {
+        // Silently catch errors so we don't spam logs on rate limits
+    }
+    
+    // Cache the fallback so we don't spam the API on failures
+    kickAvatarCache.set(lowerUser, fallbackUrl);
     return fallbackUrl;
 }
 
