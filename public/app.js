@@ -996,7 +996,8 @@ function toggleKickPlayer() {
         $('#kickPlayerButton').css('color', 'white');
         
         if (currentKickChannel) {
-            $('#kickPlayerContainer').html(`<iframe src="https://player.kick.com/${currentKickChannel}" height="100%" width="100%" frameborder="0" scrolling="no" allowfullscreen="true"></iframe>`);
+            $('#kickPlayerContainer').html(`<iframe id="kickPlayerIframe" src="https://player.kick.com/${currentKickChannel}" style="border:none; transform-origin: top left;" frameborder="0" scrolling="no" allowfullscreen="true"></iframe>`);
+            resizeKickPlayer();
         }
     } else {
         $('#kickPlayerContainer').hide();
@@ -1007,6 +1008,37 @@ function toggleKickPlayer() {
         $('#kickPlayerContainer').empty();
     }
 }
+
+function resizeKickPlayer() {
+    if (!isKickPlayerShowing) return;
+    
+    const container = $('#kickPlayerContainer');
+    const iframe = $('#kickPlayerIframe');
+    
+    if (iframe.length > 0) {
+        const containerWidth = container.width();
+        
+        // If the container is smaller than 800px (e.g. mobile or OBS dock), 
+        // the Kick player hides its volume button and controls.
+        // We force it to think it has 800px width, and then scale it down!
+        if (containerWidth > 0 && containerWidth < 800) {
+            const scale = containerWidth / 800;
+            iframe.css({
+                'width': '800px',
+                'height': '450px',
+                'transform': `scale(${scale})`
+            });
+        } else {
+            iframe.css({
+                'width': '100%',
+                'height': '100%',
+                'transform': 'none'
+            });
+        }
+    }
+}
+
+$(window).on('resize', resizeKickPlayer);
 
 function generateUsernameLink(data) {
     return `<a class="usernamelink" href="https://www.tiktok.com/@${data.uniqueId}" target="_blank">${data.uniqueId}</a>`;
