@@ -895,29 +895,15 @@ async function fetchKickAvatar(username) {
         }
         defaultNum = Math.abs(hash % 6) + 1; // 1 to 6
     }
-    const fallbackUrl = `https://kick.com/img/default-profile-pictures/default-avatar-${defaultNum}.webp`;
+    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'User')}&background=random&color=fff&size=128`;
     
-    if (!username) return fallbackUrl;
-    
-    const lowerUser = username.toLowerCase();
-    if (kickAvatarCache.has(lowerUser)) {
-        return kickAvatarCache.get(lowerUser);
+    // Kick's API and CDN are heavily protected by Cloudflare.
+    // Proxy services like allorigins, corsproxy, and codetabs return 403 or timeout.
+    // Kick's default avatar CDN also returns 403.
+    // We use ui-avatars.com to provide a nice looking initial-based avatar instead of a broken image.
+    if (username) {
+        kickAvatarCache.set(username.toLowerCase(), fallbackUrl);
     }
-
-    try {
-        const axios = require('axios');
-        // Use allorigins to bypass Kick's Cloudflare protection for the API
-        const res = await axios.get(`https://api.allorigins.win/raw?url=https://kick.com/api/v2/channels/${encodeURIComponent(lowerUser)}`, { timeout: 3000 });
-        if (res.data && res.data.user && res.data.user.profile_pic) {
-            kickAvatarCache.set(lowerUser, res.data.user.profile_pic);
-            return res.data.user.profile_pic;
-        }
-    } catch (e) {
-        // Silently catch errors so we don't spam logs on rate limits
-    }
-    
-    // Cache the fallback so we don't spam the API on failures
-    kickAvatarCache.set(lowerUser, fallbackUrl);
     return fallbackUrl;
 }
 
