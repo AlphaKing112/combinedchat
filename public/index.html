@@ -79,15 +79,15 @@
                 <div>
                     <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Background Color</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="color" id="overlayBgColor" value="#18171c" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayBgColorHex').value = this.value">
-                        <input type="text" id="overlayBgColorHex" value="#18171c" placeholder="#18171c" style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em;" oninput="document.getElementById('overlayBgColor').value = this.value">
+                        <input type="color" id="overlayBgColor" value="#18171c" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayBgColorHex').value = this.value; saveOverlaySettings();">
+                        <input type="text" id="overlayBgColorHex" value="#18171c" placeholder="#18171c" style="flex: 1; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayBgColor').value = this.value; saveOverlaySettings();">
                     </div>
                 </div>
                 <div>
                     <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Text Color</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="color" id="overlayFontColor" value="#e3e5eb" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayFontColorHex').value = this.value">
-                        <input type="text" id="overlayFontColorHex" value="#e3e5eb" placeholder="#e3e5eb" style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em;" oninput="document.getElementById('overlayFontColor').value = this.value">
+                        <input type="color" id="overlayFontColor" value="#e3e5eb" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayFontColorHex').value = this.value; saveOverlaySettings();">
+                        <input type="text" id="overlayFontColorHex" value="#e3e5eb" placeholder="#e3e5eb" style="flex: 1; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayFontColor').value = this.value; saveOverlaySettings();">
                     </div>
                 </div>
             </div>
@@ -95,7 +95,7 @@
             <!-- Row 2: Toggles: Transparent BG -->
             <div style="display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: #1c1e29; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; transition: border-color 0.2s;" onmouseover="this.style.borderColor='#58a6ff'" onmouseout="this.style.borderColor='#444'">
-                    <input type="checkbox" id="overlayTransparent" style="width:16px;height:16px;cursor:pointer;" onchange="updateBgColorFromToggle()">
+                    <input type="checkbox" id="overlayTransparent" style="width:16px;height:16px;cursor:pointer;" onchange="updateBgColorFromToggle(); saveOverlaySettings();">
                     <span style="color: #e3e5eb; font-size: 0.9em;">🔲 Transparent Background</span>
                 </label>
             </div>
@@ -104,15 +104,15 @@
             <div style="margin-bottom: 14px;">
                 <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 8px;">Font</label>
                 <div id="fontPickerGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                    <div class="font-option" data-font="Inter, sans-serif" onclick="selectFont(this)" style="font-family: Inter, sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid #58a6ff; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Inter — Hello World</div>
-                    <div class="font-option" data-font="'Roboto', sans-serif" onclick="selectFont(this)" style="font-family: 'Roboto', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Roboto — Hello World</div>
-                    <div class="font-option" data-font="'Outfit', sans-serif" onclick="selectFont(this)" style="font-family: 'Outfit', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Outfit — Hello World</div>
-                    <div class="font-option" data-font="'Poppins', sans-serif" onclick="selectFont(this)" style="font-family: 'Poppins', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Poppins — Hello World</div>
-                    <div class="font-option" data-font="'Nunito', sans-serif" onclick="selectFont(this)" style="font-family: 'Nunito', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Nunito — Hello World</div>
-                    <div class="font-option" data-font="'Montserrat', sans-serif" onclick="selectFont(this)" style="font-family: 'Montserrat', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Montserrat — Hello World</div>
-                    <div class="font-option" data-font="'Oswald', sans-serif" onclick="selectFont(this)" style="font-family: 'Oswald', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Oswald — Hello World</div>
-                    <div class="font-option" data-font="'Bebas Neue', cursive" onclick="selectFont(this)" style="font-family: 'Bebas Neue', cursive; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Bebas Neue — HELLO WORLD</div>
-                    <div class="font-option" data-font="Georgia, serif" onclick="selectFont(this)" style="font-family: Georgia, serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Georgia — Hello World</div>
+                    <div class="font-option" data-font="Inter, sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: Inter, sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid #58a6ff; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Inter — Hello World</div>
+                    <div class="font-option" data-font="'Roboto', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Roboto', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Roboto — Hello World</div>
+                    <div class="font-option" data-font="'Outfit', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Outfit', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Outfit — Hello World</div>
+                    <div class="font-option" data-font="'Poppins', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Poppins', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Poppins — Hello World</div>
+                    <div class="font-option" data-font="'Nunito', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Nunito', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Nunito — Hello World</div>
+                    <div class="font-option" data-font="'Montserrat', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Montserrat', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Montserrat — Hello World</div>
+                    <div class="font-option" data-font="'Oswald', sans-serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Oswald', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Oswald — Hello World</div>
+                    <div class="font-option" data-font="'Bebas Neue', cursive" onclick="selectFont(this); saveOverlaySettings();" style="font-family: 'Bebas Neue', cursive; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Bebas Neue — HELLO WORLD</div>
+                    <div class="font-option" data-font="Georgia, serif" onclick="selectFont(this); saveOverlaySettings();" style="font-family: Georgia, serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Georgia — Hello World</div>
                 </div>
                 <input type="hidden" id="overlayFont" value="Inter, sans-serif">
             </div>
@@ -120,7 +120,7 @@
             <!-- Row 4: Font Size -->
             <div style="margin-bottom: 16px;">
                 <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Font Size</label>
-                <select id="overlayFontSize" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
+                <select id="overlayFontSize" onchange="saveOverlaySettings()" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
                     <option value="0.9em">Small</option>
                     <option value="1.1em">Medium</option>
                     <option value="1.3em" selected>Default</option>
@@ -137,54 +137,74 @@
                 <button onclick="copyOverlayUrl()" style="background: #1db954; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">📋 Copy URL</button>
             </div>
             <div id="overlayUrlBox" style="display: none; margin-top: 12px; background: #0d0f18; border-radius: 6px; padding: 10px 14px; font-size: 0.82em; color: #58a6ff; word-break: break-all; border: 1px solid #333;"></div>
+            <script>
+                function saveOverlaySettings() {
+                    const settings = {
+                        bgColor: document.getElementById('overlayBgColor').value,
+                        fontColor: document.getElementById('overlayFontColor').value,
+                        transparent: document.getElementById('overlayTransparent').checked,
+                        font: document.getElementById('overlayFont').value,
+                        fontSize: document.getElementById('overlayFontSize').value
+                    };
+                    localStorage.setItem('overlaySettings', JSON.stringify(settings));
+                }
+
+                function loadOverlaySettings() {
+                    const saved = localStorage.getItem('overlaySettings');
+                    if (saved) {
+                        try {
+                            const settings = JSON.parse(saved);
+                            
+                            if (settings.bgColor) {
+                                document.getElementById('overlayBgColor').value = settings.bgColor;
+                                document.getElementById('overlayBgColorHex').value = settings.bgColor;
+                            }
+                            if (settings.fontColor) {
+                                document.getElementById('overlayFontColor').value = settings.fontColor;
+                                document.getElementById('overlayFontColorHex').value = settings.fontColor;
+                            }
+                            if (typeof settings.transparent !== 'undefined') {
+                                document.getElementById('overlayTransparent').checked = settings.transparent;
+                                updateBgColorFromToggle();
+                            }
+                            if (settings.font) {
+                                document.getElementById('overlayFont').value = settings.font;
+                                // Highlight the correct font option
+                                document.querySelectorAll('.font-option').forEach(f => {
+                                    if (f.getAttribute('data-font') === settings.font) {
+                                        f.style.border = '2px solid #58a6ff';
+                                    } else {
+                                        f.style.border = '2px solid transparent';
+                                    }
+                                });
+                            }
+                            if (settings.fontSize) {
+                                document.getElementById('overlayFontSize').value = settings.fontSize;
+                            }
+                        } catch (e) {
+                            console.error('Failed to load overlay settings', e);
+                        }
+                    }
+                }
+                
+                // Load settings when DOM is ready
+                document.addEventListener('DOMContentLoaded', loadOverlaySettings);
+            </script>
         </div>
     </div>
     
     <div id="twitchPlayerContainer" style="display: none; width: 100%; max-width: 800px; margin: 20px auto; text-align: center; aspect-ratio: 16/9;"></div>
 
-    <script>
-    let isTwitchPlayerShowing = false;
-    function toggleTwitchPlayer() {
-        const channel = $('#twitchInput').val().trim();
-        const container = document.getElementById('twitchPlayerContainer');
-        const btn = document.getElementById('twitchPlayerButton');
-        
-        if (!channel) {
-            alert('Please enter a Twitch channel name first!');
-            return;
-        }
-
-        if (isTwitchPlayerShowing) {
-            container.style.display = 'none';
-            container.innerHTML = '';
-            btn.value = 'Watch Stream';
-            isTwitchPlayerShowing = false;
-        } else {
-            container.style.display = 'block';
-            // Use window.location.hostname to automatically handle localhost or production domains
-            const parentDomain = window.location.hostname;
-            container.innerHTML = `<iframe src="https://player.twitch.tv/?channel=${channel}&parent=${parentDomain}&muted=true" height="100%" width="100%" allowfullscreen></iframe>`;
-            btn.value = 'Hide Stream';
-            isTwitchPlayerShowing = true;
-        }
-    }
-    
-    // Show the button when a user types in a channel
-    document.getElementById('twitchInput').addEventListener('input', function() {
-        const btn = document.getElementById('twitchPlayerButton');
-        if (this.value.trim().length > 0) {
-            btn.style.display = 'inline-block';
-        } else {
-            btn.style.display = 'none';
-            if (isTwitchPlayerShowing) toggleTwitchPlayer();
-        }
-    });
-    </script>
 
     <div id="kickStats"></div>
 
     <div id="roomStats">
       <div id="tiktokStats"></div>
+      <div id="tiktokFilters" style="display: none; justify-content: center; gap: 15px; margin-top: 10px;">
+          <label><input type="checkbox" id="filterTiktokLikes" checked onchange="toggleTiktokFilters()"> Show Likes</label>
+          <label><input type="checkbox" id="filterTiktokFollows" checked onchange="toggleTiktokFilters()"> Show Follows/Shares</label>
+          <label><input type="checkbox" id="filterTiktokJoins" checked onchange="toggleTiktokFilters()"> Show Joins</label>
+      </div>
     </div>
 
     <table class="splitchattable">
@@ -203,6 +223,7 @@
                         <input type="text" id="chatInput" placeholder="Send a message to Twitch..." style="width: 800px; max-width: 90vw; padding: 12px 15px; border-radius: 6px; border: 1px solid #444; background: #1a1a1a; color: white; outline: none; font-size: 16px; box-sizing: border-box;" autocomplete="off" onkeypress="handleChatInputKeyPress(event)">
                         <button id="toggleEmotePickerBtn" onclick="toggleEmotePicker()" style="background: transparent; color: #aaa; border: none; padding: 0 5px; font-size: 1.4em; cursor: pointer; transition: color 0.2s;">😊</button>
                         <button id="showBannedUsersBtn" onclick="showBannedUsersModal()" title="Moderation: View banned/timed out users" style="background: transparent; color: #9146FF; border: none; padding: 0 5px; font-size: 1.4em; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#bf7fff'" onmouseout="this.style.color='#9146FF'">🛡️</button>
+                        <button id="showChannelActionsBtn" onclick="showChannelActionsModal()" title="Channel Actions: Edit Stream Info & Raid" style="background: transparent; color: #9146FF; border: none; padding: 0 5px; font-size: 1.4em; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#bf7fff'" onmouseout="this.style.color='#9146FF'">🎬</button>
                         <button id="sendChatBtn" onclick="sendTwitchChat()" style="background: #9146FF; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">Send</button>
                     </div>
                     <!-- Emote Picker Window -->
@@ -231,6 +252,10 @@ function buildOverlayUrl() {
     if (kickChannel)    params.push('kick=' + encodeURIComponent(kickChannel));
     if (twitchChannel)  params.push('twitch=' + encodeURIComponent(twitchChannel));
 
+    if (!$('#filterTiktokLikes').is(':checked')) params.push('showLikes=0');
+    if (!$('#filterTiktokFollows').is(':checked')) params.push('showFollows=0');
+    if (!$('#filterTiktokJoins').is(':checked')) params.push('showJoins=0');
+
     const transparent = $('#overlayTransparent').is(':checked');
     const bgColor   = transparent ? 'transparent' : ($('#overlayBgColor').val() || '#18171c');
     const fontColor = $('#overlayFontColor').val()  || '#e3e5eb';
@@ -248,10 +273,7 @@ function buildOverlayUrl() {
 
     // Always include all events
     params.push('showChats=1');
-    params.push('showLikes=1');
     params.push('showGifts=1');
-    params.push('showFollows=1');
-    params.push('showJoins=1');
 
     return { url: url + params.join('&'), hasChannel: !!(tiktokUsername || kickChannel || twitchChannel) };
 }
@@ -321,7 +343,7 @@ function copyOverlayUrl() {
         <div class="context-menu-header" id="contextMenuHeader">Username</div>
         <div class="context-menu-item" onclick="prepareReply()">Reply to Message</div>
         <div class="context-menu-item" onclick="moderateTwitch('shoutout')">Shoutout</div>
-        <div class="context-menu-item" onclick="moderateTwitch('vip')">Give/Remove VIP</div>
+        <div class="context-menu-item" id="vipContextMenuItem" onclick="moderateTwitch('vip')">Give VIP</div>
         <div class="context-menu-item" onclick="moderateTwitch('warning')">Issue Warning</div>
         <div style="border-top: 1px solid #444; margin: 5px 0;"></div>
         <div class="context-menu-item" onclick="moderateTwitch('timeout', 60)" style="color: #ffaa00;">Timeout (1m)</div>
@@ -339,7 +361,6 @@ function copyOverlayUrl() {
         </div>
         <div class="context-menu-item" onclick="moderateTwitch('delete')" style="color: #ffaa00;">Delete Message</div>
         <div class="context-menu-item" onclick="moderateTwitch('ban')" style="color: #ff5555; border-top: 1px solid #444; margin-top: 5px; padding-top: 5px;">Ban User</div>
-        <input type="text" id="twitchModerateReason" placeholder="Reason (optional)" style="width: calc(100% - 20px); margin: 5px 10px 10px; padding: 5px; border-radius: 4px; border: 1px solid #58a6ff; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box; outline: none;" onclick="event.stopPropagation();">
     </div>
 
     <!-- Banned/Timed-out Users Modal -->
@@ -354,6 +375,44 @@ function copyOverlayUrl() {
     </div>
     <!-- Modal backdrop -->
     <div id="bannedUsersBackdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9998;" onclick="$('#bannedUsersModal').hide(); $('#bannedUsersBackdrop').hide();"></div>
+
+    <!-- Channel Actions Modal -->
+    <div id="channelActionsModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1c2e; border: 1px solid #9146FF; border-radius: 14px; padding: 22px; min-width: 380px; z-index: 9999; box-shadow: 0 8px 40px rgba(0,0,0,0.7);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; color: #e3e5eb; font-size: 1.1em; display: flex; align-items: center; gap: 8px;">🎬 Channel Actions</h3>
+            <button onclick="$('#channelActionsModal').hide(); $('#channelActionsBackdrop').hide();" style="background: none; border: none; color: #aaa; font-size: 1.4em; cursor: pointer; line-height: 1;">×</button>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 10px;">
+            <button id="tabStreamInfo" onclick="switchChannelActionTab('info')" style="flex: 1; background: #9146FF; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Stream Info</button>
+            <button id="tabRaid" onclick="switchChannelActionTab('raid')" style="flex: 1; background: transparent; color: #aaa; border: 1px solid #444; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">Raid</button>
+        </div>
+
+        <div id="sectionStreamInfo">
+            <label style="display: block; color: #aaa; margin-bottom: 5px; font-size: 12px;">STREAM TITLE</label>
+            <textarea id="streamTitleInput" disabled style="width: 100%; box-sizing: border-box; background: #0e0e14; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; margin-bottom: 15px; resize: vertical; min-height: 60px; opacity: 0.5;" placeholder="Loading stream info..."></textarea>
+            
+            <label style="display: block; color: #aaa; margin-bottom: 5px; font-size: 12px;">CATEGORY / GAME</label>
+            <div style="position: relative; margin-bottom: 15px;">
+                <input type="text" id="streamGameInput" disabled style="width: 100%; box-sizing: border-box; background: #0e0e14; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; opacity: 0.5;" placeholder="Loading stream info..." autocomplete="off">
+                <input type="hidden" id="streamGameIdInput">
+                <div id="gameSearchResults" class="custom-scrollbar" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1f1f23; border: 1px solid #444; border-top: none; z-index: 10000;"></div>
+            </div>
+
+            <button id="saveStreamInfoBtn" onclick="saveStreamInfo()" disabled style="width: 100%; background: #9146FF; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; opacity: 0.5;">Save Changes</button>
+        </div>
+
+        <div id="sectionRaid" style="display: none;">
+            <label style="display: block; color: #aaa; margin-bottom: 5px; font-size: 12px;">CHANNEL TO RAID</label>
+            <input type="text" id="raidChannelInput" style="width: 100%; box-sizing: border-box; background: #0e0e14; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; margin-bottom: 15px;" placeholder="Username (e.g. ninja)">
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="startRaid()" style="flex: 1; background: #9146FF; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">Start Raid</button>
+                <button onclick="cancelRaid()" style="flex: 1; background: #d92d2d; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">Cancel Active Raid</button>
+            </div>
+        </div>
+    </div>
+    <div id="channelActionsBackdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9998;" onclick="$('#channelActionsModal').hide(); $('#channelActionsBackdrop').hide();"></div>
 
 </body>
 </html>

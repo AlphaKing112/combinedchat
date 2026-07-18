@@ -650,6 +650,14 @@ app.post('/api/twitch/moderate', async (req, res) => {
                 }
             });
             return res.json({ success: true });
+        } else if (action === 'unvip') {
+            await axios.delete(`https://api.twitch.tv/helix/channels/vips?broadcaster_id=${broadcasterId}&user_id=${targetUserId}`, {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+                }
+            });
+            return res.json({ success: true });
         } else if (action === 'shoutout') {
             await axios.post(`https://api.twitch.tv/helix/chat/shoutouts?from_broadcaster_id=${broadcasterId}&to_broadcaster_id=${targetUserId}&moderator_id=${modId}`, null, {
                 headers: {
@@ -682,27 +690,6 @@ app.post('/api/twitch/moderate', async (req, res) => {
 });
 
 // TWITCH BANNED USERS ENDPOINT
-app.get('/api/twitch/banned', async (req, res) => {
-    const { broadcasterId } = req.query;
-    if (!broadcasterId) return res.status(400).json({ error: 'Missing broadcasterId' });
-    
-    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
-        return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
-    }
-
-    try {
-        const response = await axios.get(`https://api.twitch.tv/helix/moderation/banned?broadcaster_id=${broadcasterId}&first=100`, {
-            headers: {
-                'Client-ID': process.env.TWITCH_CLIENT_ID,
-                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
-            }
-        });
-        return res.json(response.data);
-    } catch (error) {
-        console.error('[Twitch] Get Banned Error:', error.response?.data || error.message);
-        return res.status(500).json({ error: error.response?.data?.message || error.message });
-    }
-});
 
 // TWITCH CHAT ENDPOINT
 app.post('/api/twitch/chat', async (req, res) => {
@@ -753,6 +740,36 @@ app.post('/api/twitch/chat', async (req, res) => {
 });
 
 // TWITCH EMOTES ENDPOINT
+// TWITCH BADGES ENDPOINT
+app.get('/api/twitch/badges/:broadcasterId', async (req, res) => {
+    const { broadcasterId } = req.params;
+    
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
+    }
+
+    try {
+        const headers = {
+            'Client-ID': process.env.TWITCH_CLIENT_ID,
+            'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+        };
+
+        // Fetch channel badges
+        const channelBadgesRes = await axios.get(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${broadcasterId}`, { headers });
+        
+        // Fetch global badges
+        const globalBadgesRes = await axios.get('https://api.twitch.tv/helix/chat/badges/global', { headers });
+
+        res.json({
+            channelBadges: channelBadgesRes.data?.data || [],
+            globalBadges: globalBadgesRes.data?.data || []
+        });
+    } catch (error) {
+        console.error('[Twitch] Error fetching badges:', error.response?.data || error.message);
+        res.status(500).json({ error: 'Failed to fetch Twitch badges' });
+    }
+});
+
 app.get('/api/twitch/emotes/:broadcasterId', async (req, res) => {
     const { broadcasterId } = req.params;
     
@@ -927,6 +944,148 @@ app.get('/api/twitch/ads', async (req, res) => {
         return res.json(response.data);
     } catch (error) {
         return res.status(500).json({ error: error.response?.data?.message || error.message });
+    }
+});
+
+// TWITCH CHANNEL ACTIONS ENDPOINTS
+app.get('/api/twitch/banned', async (req, res) => {
+    const { broadcasterId } = req.query;
+    if (!broadcasterId || !process.env.TWITCH_ACCESS_TOKEN) return res.json({ error: true });
+
+    try {
+        const response = await axios.get(`https://api.twitch.tv/helix/moderation/banned?broadcaster_id=${broadcasterId}&moderator_id=${broadcasterId}`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        res.json(response.data);
+    } catch (err) {
+        res.status(500).json({ error: true, message: err.message });
+    }
+});
+
+app.get('/api/twitch/channel', async (req, res) => {
+    const { broadcasterId } = req.query;
+    if (!broadcasterId || !process.env.TWITCH_ACCESS_TOKEN) return res.status(400).json({ error: true, message: 'Missing parameters or token' });
+
+    try {
+        const response = await fetch(`https://api.twitch.tv/helix/channels?broadcaster_id=${broadcasterId}`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.message);
+        res.json(data.data[0]);
+    } catch (err) {
+        res.status(500).json({ error: true, message: err.message });
+    }
+});
+
+app.patch('/api/twitch/channel', async (req, res) => {
+    const { broadcasterId, title, game_id } = req.body;
+    console.log('[Twitch] PATCH /channels request body:', req.body);
+    if (!broadcasterId || !process.env.TWITCH_ACCESS_TOKEN) return res.status(400).json({ error: true, message: 'Missing parameters or token' });
+
+    try {
+        const response = await fetch(`https://api.twitch.tv/helix/channels?broadcaster_id=${broadcasterId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ title, game_id })
+        });
+        
+        console.log('[Twitch] PATCH /channels response status:', response.status);
+        if (response.status === 204) {
+            res.json({ success: true });
+        } else {
+            const data = await response.json();
+            console.log('[Twitch] PATCH /channels error data:', data);
+            res.status(response.status).json({ error: true, message: data.message || 'Failed to update channel' });
+        }
+    } catch (err) {
+        console.error('[Twitch] PATCH /channels caught error:', err.message);
+        res.status(500).json({ error: true, message: err.message });
+    }
+});
+
+app.get('/api/twitch/search-categories', async (req, res) => {
+    const { query } = req.query;
+    if (!query || !process.env.TWITCH_ACCESS_TOKEN) return res.status(400).json({ error: true, message: 'Missing query or token' });
+
+    try {
+        const response = await fetch(`https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(query)}`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.message);
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: true, message: err.message });
+    }
+});
+
+app.post('/api/twitch/raid', async (req, res) => {
+    const { broadcasterId, targetUsername } = req.body;
+    if (!broadcasterId || !targetUsername || !process.env.TWITCH_ACCESS_TOKEN) return res.status(400).json({ error: true, message: 'Missing parameters or token' });
+
+    try {
+        // 1. Get target broadcaster ID
+        const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${targetUsername}`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        const userData = await userRes.json();
+        if (userData.error) throw new Error(userData.message);
+        if (!userData.data || userData.data.length === 0) throw new Error('Target user not found');
+        const targetId = userData.data[0].id;
+
+        // 2. Start raid
+        const raidRes = await fetch(`https://api.twitch.tv/helix/raids?from_broadcaster_id=${broadcasterId}&to_broadcaster_id=${targetId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        const raidData = await raidRes.json();
+        if (raidData.error) throw new Error(raidData.message);
+        res.json(raidData);
+    } catch (err) {
+        res.status(500).json({ error: true, message: err.message });
+    }
+});
+
+app.delete('/api/twitch/raid', async (req, res) => {
+    const { broadcasterId } = req.body;
+    if (!broadcasterId || !process.env.TWITCH_ACCESS_TOKEN) return res.status(400).json({ error: true, message: 'Missing parameters or token' });
+
+    try {
+        const response = await fetch(`https://api.twitch.tv/helix/raids?broadcaster_id=${broadcasterId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        if (response.status === 204) {
+            res.json({ success: true });
+        } else {
+            const data = await response.json();
+            throw new Error(data.message || 'Failed to cancel raid');
+        }
+    } catch (err) {
+        res.status(500).json({ error: true, message: err.message });
     }
 });
 

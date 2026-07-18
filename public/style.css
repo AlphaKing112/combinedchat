@@ -129,11 +129,12 @@ a:hover {
     transition: border 0.2s, box-shadow 0.2s;
     background: #222;
     padding: 0;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .chatcontainer div {
-    display: flex;
-    align-items: center;
+    display: block;
     background: rgba(40,44,60,0.85);
     border-radius: 8px;
     margin-bottom: 8px;
@@ -142,6 +143,7 @@ a:hover {
     animation: fadeInUp 0.5s;
     transition: background 0.2s, box-shadow 0.2s;
     font-size: 1em;
+    line-height: 1.4;
 }
 .chatcontainer div:hover {
     background: #2c2f4a;
@@ -160,7 +162,6 @@ a:hover {
     color: #e3e5eb;
     font-size: 1em;
     word-break: break-word;
-    flex: 1;
     transition: color 0.2s;
 }
 
@@ -324,8 +325,20 @@ input[type="button"]:hover {
     margin-bottom: 8px;
     padding: 8px 8px 8px 12px;
     box-shadow: 0 1px 6px #0003;
-    display: flex;
-    align-items: center;
+    display: block;
+    line-height: 1.4;
+}
+
+body.hide-tiktok-likes .tiktok-message.like-msg {
+    display: none !important;
+}
+
+body.hide-tiktok-follows .tiktok-message.follow-msg {
+    display: none !important;
+}
+
+body.hide-tiktok-joins .tiktok-message.join-msg {
+    display: none !important;
 }
 
 /* Kick Chat Styles */
@@ -335,9 +348,8 @@ input[type="button"]:hover {
     margin-bottom: 8px;
     padding: 8px 8px 8px 12px;
     box-shadow: 0 1px 6px #0cfc7033;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    display: block;
+    line-height: 1.4;
 }
 
 /* Twitch Chat Styles */
@@ -347,9 +359,8 @@ input[type="button"]:hover {
     margin-bottom: 8px;
     padding: 8px 8px 8px 12px;
     box-shadow: 0 1px 6px #9146ff33;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    display: block;
+    line-height: 1.4;
 }
 
 /* Kick Gifted Sub Styles */
@@ -572,7 +583,8 @@ input[type="button"]:hover {
     object-position: left center;
     background: #222;
     box-shadow: 0 2px 8px #0006;
-    display: block;
+    display: inline-block;
+    vertical-align: middle;
     transition: border 0.2s, box-shadow 0.2s;
     padding: 0;
 }
@@ -913,3 +925,19 @@ input[type="button"]:hover {
 .hide-likes .tiktok-message.like-msg { display: none !important; }
 .hide-gifts .tiktok-message.gift-msg { display: none !important; }
 .hide-follows .tiktok-message.follow-msg { display: none !important; }
+
+/* Twitch Channel Actions */
+.game-search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: #e3e5eb;
+    border-bottom: 1px solid #333;
+    transition: background 0.2s;
+}
+
+.game-search-item:hover {
+    background: #333;
+}
+.game-search-item:last-child {
+    border-bottom: none;
+}

@@ -110,6 +110,11 @@
                     body, body * { text-shadow: 2px 2px 6px #000000 !important; }
                 `).appendTo('head');
             }
+            
+            // Apply filter settings
+            if (window.settings.showLikes === '0') $('body').addClass('hide-tiktok-likes');
+            if (window.settings.showFollows === '0') $('body').addClass('hide-tiktok-follows');
+            if (window.settings.showJoins === '0') $('body').addClass('hide-tiktok-joins');
 
             // Always bold by default
             const fw = window.settings.fontWeight || '700';
