@@ -404,7 +404,10 @@ function copyOverlayUrl() {
 
         <div id="sectionRaid" style="display: none;">
             <label style="display: block; color: #aaa; margin-bottom: 5px; font-size: 12px;">CHANNEL TO RAID</label>
-            <input type="text" id="raidChannelInput" style="width: 100%; box-sizing: border-box; background: #0e0e14; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; margin-bottom: 15px;" placeholder="Username (e.g. ninja)">
+            <div style="position: relative; margin-bottom: 15px;">
+                <input type="text" id="raidChannelInput" style="width: 100%; box-sizing: border-box; background: #0e0e14; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px;" placeholder="Username (e.g. ninja)" autocomplete="off">
+                <div id="raidSearchResults" class="custom-scrollbar" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1f1f23; border: 1px solid #444; border-top: none; z-index: 10000;"></div>
+            </div>
             
             <div style="display: flex; gap: 10px;">
                 <button onclick="startRaid()" style="flex: 1; background: #9146FF; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">Start Raid</button>

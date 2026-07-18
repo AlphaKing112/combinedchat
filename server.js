@@ -1033,6 +1033,54 @@ app.get('/api/twitch/search-categories', async (req, res) => {
     }
 });
 
+app.get('/api/twitch/search-channels', async (req, res) => {
+    const { query } = req.query;
+    if (!query || !process.env.TWITCH_ACCESS_TOKEN) return res.json({ data: [] });
+
+    try {
+        // 1. Search for live channels
+        const searchRes = await fetch(`https://api.twitch.tv/helix/search/channels?query=${encodeURIComponent(query)}&live_only=true&first=10`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        const searchData = await searchRes.json();
+        
+        if (!searchData.data || searchData.data.length === 0) {
+            return res.json({ data: [] });
+        }
+
+        // 2. Fetch viewer counts for these channels
+        const userIds = searchData.data.map(c => `user_id=${c.id}`).join('&');
+        const streamRes = await fetch(`https://api.twitch.tv/helix/streams?${userIds}`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        const streamData = await streamRes.json();
+
+        // 3. Map viewer counts back to channels
+        const viewerMap = {};
+        if (streamData.data) {
+            streamData.data.forEach(stream => {
+                viewerMap[stream.user_id] = stream.viewer_count;
+            });
+        }
+
+        const enrichedData = searchData.data.map(c => ({
+            ...c,
+            viewer_count: viewerMap[c.id] || 0
+        })).sort((a, b) => b.viewer_count - a.viewer_count); // Sort by viewers descending
+
+        res.json({ data: enrichedData });
+    } catch (err) {
+        console.error('[Twitch] Channel Search error:', err.message);
+        res.json({ data: [] });
+    }
+});
+
 app.post('/api/twitch/raid', async (req, res) => {
     const { broadcasterId, targetUsername } = req.body;
     if (!broadcasterId || !targetUsername || !process.env.TWITCH_ACCESS_TOKEN) return res.status(400).json({ error: true, message: 'Missing parameters or token' });

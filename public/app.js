@@ -2366,9 +2366,51 @@ $(document).on('input', '#streamGameInput', function() {
     }, 500);
 });
 
+$(document).on('input', '#raidChannelInput', function() {
+    clearTimeout(raidSearchTimeout);
+    const query = $(this).val().trim();
+    if (!query) {
+        $('#raidSearchResults').hide().empty();
+        return;
+    }
+    
+    raidSearchTimeout = setTimeout(() => {
+        fetch('/api/twitch/search-channels?query=' + encodeURIComponent(query))
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) return;
+                const resultsBox = $('#raidSearchResults');
+                resultsBox.empty();
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(channel => {
+                        const div = $('<div class="game-search-item" style="display: flex; align-items: center; justify-content: space-between;"></div>');
+                        div.html(`
+                            <div style="display: flex; align-items: center;">
+                                <img src="${channel.thumbnail_url}" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:8px;">
+                                <span>${channel.display_name}</span>
+                            </div>
+                            <span style="color: #ff5555; font-size: 0.9em;">🔴 ${channel.viewer_count.toLocaleString()}</span>
+                        `);
+                        div.on('click', () => {
+                            $('#raidChannelInput').val(channel.display_name);
+                            resultsBox.hide();
+                        });
+                        resultsBox.append(div);
+                    });
+                    resultsBox.show();
+                } else {
+                    resultsBox.hide();
+                }
+            });
+    }, 500);
+});
+
 $(document).click(function(e) {
     if (!$(e.target).closest('#streamGameInput, #gameSearchResults').length) {
         $('#gameSearchResults').hide();
+    }
+    if (!$(e.target).closest('#raidChannelInput, #raidSearchResults').length) {
+        $('#raidSearchResults').hide();
     }
 });
 
