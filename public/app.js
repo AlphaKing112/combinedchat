@@ -1282,7 +1282,15 @@ $(document).ready(function() {
             $('#stateText').text('Disconnected from Kick');
             setLiveDot('kickDot', false);
             window.currentKickStreamData = null;
-            updateDurationDisplay();
+            window.currentKickStatsData = null;
+            if (typeof durationInterval !== 'undefined' && durationInterval) {
+                clearInterval(durationInterval);
+                durationInterval = null;
+            }
+            if (typeof streamStartTime !== 'undefined') {
+                streamStartTime = null;
+            }
+            $('#kickStats').empty();
             return;
         }
         
