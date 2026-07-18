@@ -2276,6 +2276,7 @@ function showBannedUsersModal() {
 
 // --- Channel Actions Logic ---
 let gameSearchTimeout;
+let raidSearchTimeout;
 
 function showChannelActionsModal() {
     if (!$('#channelActionsModal').is(':visible')) {
