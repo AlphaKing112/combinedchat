@@ -895,7 +895,7 @@ async function fetchKickAvatar(username) {
         }
         defaultNum = Math.abs(hash % 6) + 1; // 1 to 6
     }
-    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'User')}&background=random&color=fff&size=128`;
+    const fallbackUrl = `https://kick.com/img/default-profile-pictures/default-avatar-${defaultNum}.webp`;
     
     if (!username) return fallbackUrl;
     
