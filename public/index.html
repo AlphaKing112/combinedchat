@@ -112,6 +112,22 @@
                             <option value="2.5em">XX-Large</option>
                         </select>
                     </div>
+
+                    <div style="margin-top: 12px;">
+                        <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Animation</label>
+                        <select id="overlayAnimation" onchange="saveOverlaySettings()" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
+                            <option value="">No animation</option>
+                            <option value="anim-popIn">Pop In</option>
+                            <option value="anim-slideIn">Slide In</option>
+                            <option value="anim-fadeIn">Fade In</option>
+                            <option value="anim-bounceIn">Bounce In</option>
+                            <option value="anim-zoomIn">Zoom In</option>
+                            <option value="anim-flipIn">Flip In</option>
+                            <option value="anim-rotateIn">Rotate In</option>
+                            <option value="anim-swingIn">Swing In</option>
+                            <option value="anim-rollIn">Roll In</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             </div>
@@ -130,7 +146,8 @@
                         fontColor: document.getElementById('overlayFontColor').value,
                         transparent: document.getElementById('overlayTransparent').checked,
                         font: document.getElementById('overlayFont').value,
-                        fontSize: document.getElementById('overlayFontSize').value
+                        fontSize: document.getElementById('overlayFontSize').value,
+                        animation: document.getElementById('overlayAnimation').value
                     };
                     localStorage.setItem('overlaySettings', JSON.stringify(settings));
                 }
@@ -158,6 +175,9 @@
                             }
                             if (settings.fontSize) {
                                 document.getElementById('overlayFontSize').value = settings.fontSize;
+                            }
+                            if (settings.animation) {
+                                document.getElementById('overlayAnimation').value = settings.animation;
                             }
                         } catch (e) {
                             console.error('Failed to load overlay settings', e);
@@ -258,11 +278,13 @@ function buildOverlayUrl() {
     const fontColor = $('#overlayFontColor').val()  || '#e3e5eb';
     const fontSize  = $('#overlayFontSize').val()   || '1.3em';
     const fontFamily = $('#overlayFont').val()      || 'Inter, sans-serif';
+    const animation = $('#overlayAnimation').val()  || '';
 
     params.push('bgColor='    + encodeURIComponent(bgColor));
     params.push('fontColor='  + encodeURIComponent(fontColor));
     params.push('fontSize='   + encodeURIComponent(fontSize));
     params.push('fontFamily=' + encodeURIComponent(fontFamily));
+    if (animation) params.push('animation=' + encodeURIComponent(animation));
 
     // Always apply bold text and drop shadow
     params.push('textShadow=' + encodeURIComponent('2px 2px 6px #000000'));
