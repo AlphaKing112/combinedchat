@@ -266,7 +266,9 @@ io.on('connection', (socket) => {
     
     socket.on('setKickLink', async (kickLink, providedChatroomId) => {
         try {
-            // Disconnect previous Kick client
+            if (!kickLink) return;
+            
+            let channelSlug = kickLink.trim();
             if (kickChatClient) {
                 try {
                     kickChatClient.disconnect();
@@ -280,7 +282,6 @@ io.on('connection', (socket) => {
             socket.currentKickSessionId = thisSessionId;
             
             // Extract the channel slug from the link or use as-is if already a slug
-            let channelSlug = kickLink;
             const match = kickLink.match(/kick\.com\/([A-Za-z0-9_]+)/i);
             if (match) {
                 channelSlug = match[1];

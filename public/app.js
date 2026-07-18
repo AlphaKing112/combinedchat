@@ -1300,8 +1300,11 @@ $(document).ready(function() {
         if (match) {
             kickInput = match[1];
         }
+        
+        kickInput = kickInput.toLowerCase();
+
         // Validate username
-        if (!/^[A-Za-z0-9_]{2,24}$/.test(kickInput)) {
+        if (!/^[a-z0-9_]{2,24}$/.test(kickInput)) {
             alert('Please enter a valid Kick channel name (2-24 letters, numbers, or underscores).');
             return;
         }
