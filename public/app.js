@@ -2369,6 +2369,13 @@ $(document).on('input', '#streamGameInput', function() {
 $(document).on('input', '#raidChannelInput', function() {
     clearTimeout(raidSearchTimeout);
     const query = $(this).val().trim();
+    
+    // Dynamically create results box if index.html was cached
+    if ($('#raidSearchResults').length === 0) {
+        $('<div id="raidSearchResults" class="custom-scrollbar" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1f1f23; border: 1px solid #444; border-top: none; z-index: 10000;"></div>').insertAfter('#raidChannelInput');
+        $('#raidChannelInput').parent().css('position', 'relative');
+    }
+
     if (!query) {
         $('#raidSearchResults').hide().empty();
         return;

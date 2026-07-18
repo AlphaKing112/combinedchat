@@ -1038,8 +1038,8 @@ app.get('/api/twitch/search-channels', async (req, res) => {
     if (!query || !process.env.TWITCH_ACCESS_TOKEN) return res.json({ data: [] });
 
     try {
-        // 1. Search for live channels
-        const searchRes = await fetch(`https://api.twitch.tv/helix/search/channels?query=${encodeURIComponent(query)}&live_only=true&first=10`, {
+        // 1. Search for channels (bypassing live_only=true due to Twitch API caching bugs)
+        const searchRes = await fetch(`https://api.twitch.tv/helix/search/channels?query=${encodeURIComponent(query)}&first=10`, {
             headers: {
                 'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
                 'Client-Id': process.env.TWITCH_CLIENT_ID
@@ -1051,7 +1051,7 @@ app.get('/api/twitch/search-channels', async (req, res) => {
             return res.json({ data: [] });
         }
 
-        // 2. Fetch viewer counts for these channels
+        // 2. Fetch viewer counts for these channels to confirm they are actually live
         const userIds = searchData.data.map(c => `user_id=${c.id}`).join('&');
         const streamRes = await fetch(`https://api.twitch.tv/helix/streams?${userIds}`, {
             headers: {
@@ -1072,7 +1072,7 @@ app.get('/api/twitch/search-channels', async (req, res) => {
         const enrichedData = searchData.data.map(c => ({
             ...c,
             viewer_count: viewerMap[c.id] || 0
-        })).sort((a, b) => b.viewer_count - a.viewer_count); // Sort by viewers descending
+        })).filter(c => c.viewer_count > 0).sort((a, b) => b.viewer_count - a.viewer_count); // Sort by viewers descending
 
         res.json({ data: enrichedData });
     } catch (err) {
