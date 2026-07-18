@@ -1669,6 +1669,12 @@ $(document).ready(function() {
         $('#kickConnectButton').val('connect');
     });
 
+    window.connection.socket.on('updateKickAvatar', function(data) {
+        if (data && data.username && data.url) {
+            $(`.kick-avatar-img[data-username="${data.username}"]`).attr('src', data.url);
+        }
+    });
+
     // Browser-based Kick stats fetching
     // REMOVE the duplicate Kick stats button handler below (inside document.ready):
     // $('#kickStatsButton').on('click', function() { ... });

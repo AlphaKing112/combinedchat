@@ -352,16 +352,35 @@ io.on('connection', (socket) => {
             await kickChatClient.connect();
             
             // Set up event handlers
-            kickChatClient.on('ChatMessage', async (msg) => {
+            kickChatClient.on('ChatMessage', (msg) => {
                 if (socket.currentKickSessionId !== sessionId) {
                     return;
                 }
                 
                 console.log(`[Kick] Chat message received:`, msg);
                 
-                // Fetch avatar before emitting to avoid pop-in
+                // Fetch avatar asynchronously to avoid delaying chat messages!
                 if (msg.sender && msg.sender.username) {
-                    msg.sender.profilePic = await fetchKickAvatar(msg.sender.username);
+                    const lowerUser = msg.sender.username.toLowerCase();
+                    if (kickAvatarCache.has(lowerUser)) {
+                        msg.sender.profilePic = kickAvatarCache.get(lowerUser);
+                    } else {
+                        // Provide default fallback immediately
+                        let defaultNum = 1;
+                        let hash = 0;
+                        for (let i = 0; i < msg.sender.username.length; i++) {
+                            hash = msg.sender.username.charCodeAt(i) + ((hash << 5) - hash);
+                        }
+                        defaultNum = Math.abs(hash % 6) + 1;
+                        msg.sender.profilePic = `https://kick.com/img/default-profile-pictures/default-avatar-${defaultNum}.webp`;
+                        
+                        // Fetch in background and notify client if it changes
+                        fetchKickAvatar(msg.sender.username).then(url => {
+                            if (url && url !== msg.sender.profilePic) {
+                                io.emit('updateKickAvatar', { username: msg.sender.username, url });
+                            }
+                        }).catch(() => {});
+                    }
                 }
                 
                 // Enhanced badge processing
@@ -913,11 +932,13 @@ async function fetchKickAvatar(username) {
             return res.data.user.profile_pic;
         }
     } catch (e) {
-        // Silently catch errors so we don't spam logs on rate limits
+        // If the user doesn't have a channel (404), cache the fallback so we don't keep delaying their messages
+        if (e.response && e.response.status === 404) {
+            kickAvatarCache.set(lowerUser, fallbackUrl);
+        }
+        // For timeouts or 403s, we DO NOT cache the fallback, so it can retry on their next message!
     }
     
-    // Cache the fallback so we don't spam the API on failures
-    kickAvatarCache.set(lowerUser, fallbackUrl);
     return fallbackUrl;
 }
 
