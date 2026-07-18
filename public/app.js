@@ -2370,25 +2370,38 @@ $(document).on('input', '#raidChannelInput', function() {
     clearTimeout(raidSearchTimeout);
     const query = $(this).val().trim();
     
+    console.log('[DEBUG] Raid search input fired, query:', query);
+    
     // Dynamically create results box if index.html was cached
     if ($('#raidSearchResults').length === 0) {
+        console.log('[DEBUG] raidSearchResults div missing! Creating dynamically...');
         $('<div id="raidSearchResults" class="custom-scrollbar" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1f1f23; border: 1px solid #444; border-top: none; z-index: 10000;"></div>').insertAfter('#raidChannelInput');
         $('#raidChannelInput').parent().css('position', 'relative');
     }
 
     if (!query) {
+        console.log('[DEBUG] Query empty, hiding results.');
         $('#raidSearchResults').hide().empty();
         return;
     }
-    
+
     raidSearchTimeout = setTimeout(() => {
+        console.log('[DEBUG] Fetching Twitch API for query:', query);
         fetch('/api/twitch/search-channels?query=' + encodeURIComponent(query))
-            .then(res => res.json())
+            .then(res => {
+                console.log('[DEBUG] Fetch response status:', res.status);
+                return res.json();
+            })
             .then(data => {
-                if (data.error) return;
+                console.log('[DEBUG] Fetch returned data:', data);
+                if (data.error) {
+                    console.error('[DEBUG] Fetch returned data error:', data.error);
+                    return;
+                }
                 const resultsBox = $('#raidSearchResults');
                 resultsBox.empty();
                 if (data.data && data.data.length > 0) {
+                    console.log(`[DEBUG] Found ${data.data.length} channels, rendering...`);
                     data.data.forEach(channel => {
                         const div = $('<div class="game-search-item" style="display: flex; align-items: center; justify-content: space-between;"></div>');
                         div.html(`
@@ -2405,9 +2418,14 @@ $(document).on('input', '#raidChannelInput', function() {
                         resultsBox.append(div);
                     });
                     resultsBox.show();
+                    console.log('[DEBUG] Dropdown is now visible!');
                 } else {
+                    console.log('[DEBUG] No channels found in data array. Hiding dropdown.');
                     resultsBox.hide();
                 }
+            })
+            .catch(err => {
+                console.error('[DEBUG] Fetch completely failed:', err);
             });
     }, 500);
 });

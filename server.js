@@ -1072,7 +1072,7 @@ app.get('/api/twitch/search-channels', async (req, res) => {
         const enrichedData = searchData.data.map(c => ({
             ...c,
             viewer_count: viewerMap[c.id] || 0
-        })).filter(c => c.viewer_count > 0).sort((a, b) => b.viewer_count - a.viewer_count); // Sort by viewers descending
+        })).sort((a, b) => b.viewer_count - a.viewer_count); // Sort by viewers descending
 
         res.json({ data: enrichedData });
     } catch (err) {
