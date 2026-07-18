@@ -77,18 +77,18 @@
 
             <!-- Row 1: Background + Text Color -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
-                <div>
+                <div style="min-width: 0;">
                     <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Background Color</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="color" id="overlayBgColor" value="#18171c" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayBgColorHex').value = this.value; saveOverlaySettings();">
-                        <input type="text" id="overlayBgColorHex" value="#18171c" placeholder="#18171c" style="flex: 1; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayBgColor').value = this.value; saveOverlaySettings();">
+                        <input type="color" id="overlayBgColor" value="#18171c" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0;" oninput="document.getElementById('overlayBgColorHex').value = this.value; saveOverlaySettings();">
+                        <input type="text" id="overlayBgColorHex" value="#18171c" placeholder="#18171c" style="width: 100%; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayBgColor').value = this.value; saveOverlaySettings();">
                     </div>
                 </div>
-                <div>
+                <div style="min-width: 0;">
                     <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Text Color</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="color" id="overlayFontColor" value="#e3e5eb" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayFontColorHex').value = this.value; saveOverlaySettings();">
-                        <input type="text" id="overlayFontColorHex" value="#e3e5eb" placeholder="#e3e5eb" style="flex: 1; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayFontColor').value = this.value; saveOverlaySettings();">
+                        <input type="color" id="overlayFontColor" value="#e3e5eb" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer; flex-shrink: 0;" oninput="document.getElementById('overlayFontColorHex').value = this.value; saveOverlaySettings();">
+                        <input type="text" id="overlayFontColorHex" value="#e3e5eb" placeholder="#e3e5eb" style="width: 100%; min-width: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box;" oninput="document.getElementById('overlayFontColor').value = this.value; saveOverlaySettings();">
                     </div>
                 </div>
             </div>
