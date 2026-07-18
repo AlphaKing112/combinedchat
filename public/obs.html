@@ -89,7 +89,33 @@
 
             if (window.settings.fontFamily) {
                 $('body').css('font-family', window.settings.fontFamily);
+                // Load Google Font if needed
+                const googleFonts = ['Roboto','Outfit','Poppins','Nunito','Montserrat','Oswald','Bebas Neue'];
+                const fontName = window.settings.fontFamily.replace(/['"]/g, '').split(',')[0].trim();
+                if (googleFonts.some(f => f.toLowerCase() === fontName.toLowerCase())) {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700&display=swap`;
+                    document.head.appendChild(link);
+                }
             }
+
+            if (window.settings.textShadow) {
+                $('<style>').text(`
+                    body, body * { text-shadow: ${window.settings.textShadow} !important; }
+                `).appendTo('head');
+            } else {
+                // Default: always apply drop shadow for readability
+                $('<style>').text(`
+                    body, body * { text-shadow: 2px 2px 6px #000000 !important; }
+                `).appendTo('head');
+            }
+
+            // Always bold by default
+            const fw = window.settings.fontWeight || '700';
+            $('<style>').text(`
+                body, body * { font-weight: ${fw} !important; }
+            `).appendTo('head');
 
             if (window.settings.fontWeight) {
                 $('body').css('font-weight', window.settings.fontWeight);

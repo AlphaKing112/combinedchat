@@ -15,6 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script src="connection.js"></script>
+    <script src="https://player.twitch.tv/js/embed/v1.js"></script>
     <script src="app.js"></script>
 </head>
 <body>
@@ -47,7 +48,6 @@
         <p>Enter the <b>@username</b> of a user who is currently live:</p>
         <input type="text" id="uniqueIdInput" placeholder="TikTok username (e.g. username)" autocomplete="off">
         <input type="button" id="connectButton" value="connect">
-        <a href="#" onclick="generateOverlay()">Generate Overlay URL</a>
         <br>
         <p>Enter the <b>Kick channel name</b> (e.g. somechannel):</p>
         <input type="text" id="kickLinkInput" placeholder="Kick channel name (e.g. somechannel)" autocomplete="off">
@@ -59,6 +59,85 @@
         <input type="button" id="twitchPlayerButton" value="Watch Stream" onclick="toggleTwitchPlayer()" style="display: none; margin-left: 10px; background-color: #9146FF; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
         <input type="button" id="twitchClipButton" value="Clip Stream 🎬" onclick="createTwitchClip()" style="display: none; margin-left: 10px; background-color: #ffaa00; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
         <br>
+    </div>
+
+    <!-- Overlay Customization Panel -->
+    <div id="overlayPanel" style="background: linear-gradient(135deg, #1a1c2e 0%, #16181f 100%); border: 1px solid #444; border-radius: 12px; padding: 18px 22px; margin: 18px auto; max-width: 700px; box-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="document.getElementById('overlayPanelBody').style.display = document.getElementById('overlayPanelBody').style.display === 'none' ? 'block' : 'none';">
+            <h3 style="margin: 0; color: #e3e5eb; font-size: 1em; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.2em;">🎨</span> OBS Overlay Customization
+            </h3>
+            <span style="color: #aaa; font-size: 0.85em;">▼ click to expand</span>
+        </div>
+        <div id="overlayPanelBody" style="display: none; margin-top: 14px;">
+            <!-- Google Fonts preload for previews -->
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Outfit&family=Poppins&family=Nunito&family=Montserrat&family=Oswald&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+            <!-- Row 1: Background + Text Color -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                <div>
+                    <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Background Color</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="color" id="overlayBgColor" value="#18171c" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayBgColorHex').value = this.value">
+                        <input type="text" id="overlayBgColorHex" value="#18171c" placeholder="#18171c" style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em;" oninput="document.getElementById('overlayBgColor').value = this.value">
+                    </div>
+                </div>
+                <div>
+                    <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Text Color</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="color" id="overlayFontColor" value="#e3e5eb" style="width: 40px; height: 32px; border: none; border-radius: 4px; cursor: pointer;" oninput="document.getElementById('overlayFontColorHex').value = this.value">
+                        <input type="text" id="overlayFontColorHex" value="#e3e5eb" placeholder="#e3e5eb" style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em;" oninput="document.getElementById('overlayFontColor').value = this.value">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Toggles: Transparent BG -->
+            <div style="display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: #1c1e29; border: 1px solid #444; border-radius: 8px; padding: 8px 14px; transition: border-color 0.2s;" onmouseover="this.style.borderColor='#58a6ff'" onmouseout="this.style.borderColor='#444'">
+                    <input type="checkbox" id="overlayTransparent" style="width:16px;height:16px;cursor:pointer;" onchange="updateBgColorFromToggle()">
+                    <span style="color: #e3e5eb; font-size: 0.9em;">🔲 Transparent Background</span>
+                </label>
+            </div>
+
+            <!-- Row 3: Font Picker with live previews -->
+            <div style="margin-bottom: 14px;">
+                <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 8px;">Font</label>
+                <div id="fontPickerGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    <div class="font-option" data-font="Inter, sans-serif" onclick="selectFont(this)" style="font-family: Inter, sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid #58a6ff; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Inter — Hello World</div>
+                    <div class="font-option" data-font="'Roboto', sans-serif" onclick="selectFont(this)" style="font-family: 'Roboto', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Roboto — Hello World</div>
+                    <div class="font-option" data-font="'Outfit', sans-serif" onclick="selectFont(this)" style="font-family: 'Outfit', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Outfit — Hello World</div>
+                    <div class="font-option" data-font="'Poppins', sans-serif" onclick="selectFont(this)" style="font-family: 'Poppins', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Poppins — Hello World</div>
+                    <div class="font-option" data-font="'Nunito', sans-serif" onclick="selectFont(this)" style="font-family: 'Nunito', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Nunito — Hello World</div>
+                    <div class="font-option" data-font="'Montserrat', sans-serif" onclick="selectFont(this)" style="font-family: 'Montserrat', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Montserrat — Hello World</div>
+                    <div class="font-option" data-font="'Oswald', sans-serif" onclick="selectFont(this)" style="font-family: 'Oswald', sans-serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Oswald — Hello World</div>
+                    <div class="font-option" data-font="'Bebas Neue', cursive" onclick="selectFont(this)" style="font-family: 'Bebas Neue', cursive; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Bebas Neue — HELLO WORLD</div>
+                    <div class="font-option" data-font="Georgia, serif" onclick="selectFont(this)" style="font-family: Georgia, serif; padding: 10px 12px; border-radius: 8px; border: 2px solid transparent; background: #1c1e29; cursor: pointer; text-align: center; color: #e3e5eb; font-size: 0.95em;">Georgia — Hello World</div>
+                </div>
+                <input type="hidden" id="overlayFont" value="Inter, sans-serif">
+            </div>
+
+            <!-- Row 4: Font Size -->
+            <div style="margin-bottom: 16px;">
+                <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Font Size</label>
+                <select id="overlayFontSize" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
+                    <option value="0.9em">Small</option>
+                    <option value="1.1em">Medium</option>
+                    <option value="1.3em" selected>Default</option>
+                    <option value="1.6em">Large</option>
+                    <option value="2em">X-Large</option>
+                    <option value="2.5em">XX-Large</option>
+                </select>
+            </div>
+
+            <!-- Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px;">
+                <button onclick="previewOverlay()" style="background: #2a2d3e; color: #aaa; border: 1px solid #444; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">👁️ Preview</button>
+                <button onclick="generateOverlay()" style="background: linear-gradient(90deg, #58a6ff, #9146FF); color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95em; box-shadow: 0 2px 8px rgba(145,70,255,0.3);">🔗 Generate Overlay URL</button>
+                <button onclick="copyOverlayUrl()" style="background: #1db954; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">📋 Copy URL</button>
+            </div>
+            <div id="overlayUrlBox" style="display: none; margin-top: 12px; background: #0d0f18; border-radius: 6px; padding: 10px 14px; font-size: 0.82em; color: #58a6ff; word-break: break-all; border: 1px solid #333;"></div>
+        </div>
     </div>
     
     <div id="twitchPlayerContainer" style="display: none; width: 100%; max-width: 800px; margin: 20px auto; text-align: center; aspect-ratio: 16/9;"></div>
@@ -122,7 +201,8 @@
                     </div>
                     <div style="display: flex; gap: 10px; position: relative; justify-content: center; align-items: center; width: 100%; margin: 0 auto; box-sizing: border-box;">
                         <input type="text" id="chatInput" placeholder="Send a message to Twitch..." style="width: 800px; max-width: 90vw; padding: 12px 15px; border-radius: 6px; border: 1px solid #444; background: #1a1a1a; color: white; outline: none; font-size: 16px; box-sizing: border-box;" autocomplete="off" onkeypress="handleChatInputKeyPress(event)">
-                        <button id="toggleEmotePickerBtn" onclick="toggleEmotePicker()" style="background: transparent; color: #aaa; border: none; padding: 0 5px; font-size: 1.4em; cursor: pointer; transition: color 0.2s;">😀</button>
+                        <button id="toggleEmotePickerBtn" onclick="toggleEmotePicker()" style="background: transparent; color: #aaa; border: none; padding: 0 5px; font-size: 1.4em; cursor: pointer; transition: color 0.2s;">😊</button>
+                        <button id="showBannedUsersBtn" onclick="showBannedUsersModal()" title="Moderation: View banned/timed out users" style="background: transparent; color: #9146FF; border: none; padding: 0 5px; font-size: 1.4em; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#bf7fff'" onmouseout="this.style.color='#9146FF'">🛡️</button>
                         <button id="sendChatBtn" onclick="sendTwitchChat()" style="background: #9146FF; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">Send</button>
                     </div>
                     <!-- Emote Picker Window -->
@@ -139,40 +219,100 @@
         </tr>
     </table>
     <script>
-function generateOverlay() {
+function buildOverlayUrl() {
     let tiktokUsername = $('#uniqueIdInput').val().trim();
     let kickChannel = $('#kickLinkInput').val().trim();
     let twitchChannel = $('#twitchInput').val().trim();
 
-    let url = '/obs.html?';
+    let url = window.location.origin + '/obs.html?';
     let params = [];
 
-    if (tiktokUsername) {
-        params.push('username=' + encodeURIComponent(tiktokUsername));
-    }
-    if (kickChannel) {
-        params.push('kick=' + encodeURIComponent(kickChannel));
-    }
-    if (twitchChannel) {
-        params.push('twitch=' + encodeURIComponent(twitchChannel));
-    }
+    if (tiktokUsername) params.push('username=' + encodeURIComponent(tiktokUsername));
+    if (kickChannel)    params.push('kick=' + encodeURIComponent(kickChannel));
+    if (twitchChannel)  params.push('twitch=' + encodeURIComponent(twitchChannel));
 
-    // Add your other overlay params as before
-    params.push('showLikes=1');
+    const transparent = $('#overlayTransparent').is(':checked');
+    const bgColor   = transparent ? 'transparent' : ($('#overlayBgColor').val() || '#18171c');
+    const fontColor = $('#overlayFontColor').val()  || '#e3e5eb';
+    const fontSize  = $('#overlayFontSize').val()   || '1.3em';
+    const fontFamily = $('#overlayFont').val()      || 'Inter, sans-serif';
+
+    params.push('bgColor='    + encodeURIComponent(bgColor));
+    params.push('fontColor='  + encodeURIComponent(fontColor));
+    params.push('fontSize='   + encodeURIComponent(fontSize));
+    params.push('fontFamily=' + encodeURIComponent(fontFamily));
+
+    // Always apply bold text and drop shadow
+    params.push('textShadow=' + encodeURIComponent('2px 2px 6px #000000'));
+    params.push('fontWeight=700');
+
+    // Always include all events
     params.push('showChats=1');
+    params.push('showLikes=1');
     params.push('showGifts=1');
     params.push('showFollows=1');
     params.push('showJoins=1');
-    params.push('bgColor=rgb(24,23,28)');
-    params.push('fontColor=rgb(227,229,235)');
-    params.push('fontSize=1.3em');
 
-    if (tiktokUsername || kickChannel || twitchChannel) {
-        url += params.join('&');
-        window.open(url, '_blank');
-    } else {
-        alert("Enter TikTok username, Kick channel name, or Twitch channel name");
+    return { url: url + params.join('&'), hasChannel: !!(tiktokUsername || kickChannel || twitchChannel) };
+}
+
+function selectFont(el) {
+    document.querySelectorAll('.font-option').forEach(function(f) {
+        f.style.border = '2px solid transparent';
+    });
+    el.style.border = '2px solid #58a6ff';
+    document.getElementById('overlayFont').value = el.getAttribute('data-font');
+}
+
+function updateBgColorFromToggle() {
+    const isTransparent = document.getElementById('overlayTransparent').checked;
+    const colorInput = document.getElementById('overlayBgColor');
+    const hexInput = document.getElementById('overlayBgColorHex');
+    colorInput.disabled = isTransparent;
+    hexInput.disabled = isTransparent;
+    hexInput.style.opacity = isTransparent ? '0.4' : '1';
+    colorInput.style.opacity = isTransparent ? '0.4' : '1';
+}
+
+function generateOverlay() {
+    const { url, hasChannel } = buildOverlayUrl();
+    if (!hasChannel) {
+        showNotification('Enter at least one channel name first!', 'error');
+        return;
     }
+    // Show URL box
+    document.getElementById('overlayPanelBody').style.display = 'block';
+    const box = $('#overlayUrlBox');
+    box.text(url).show();
+    window.open(url, '_blank');
+}
+
+function previewOverlay() {
+    const { url, hasChannel } = buildOverlayUrl();
+    if (!hasChannel) {
+        showNotification('Enter at least one channel name first!', 'error');
+        return;
+    }
+    document.getElementById('overlayPanelBody').style.display = 'block';
+    const box = $('#overlayUrlBox');
+    box.text(url).show();
+    window.open(url, '_blank');
+}
+
+function copyOverlayUrl() {
+    const { url, hasChannel } = buildOverlayUrl();
+    if (!hasChannel) {
+        showNotification('Enter at least one channel name first!', 'error');
+        return;
+    }
+    document.getElementById('overlayPanelBody').style.display = 'block';
+    const box = $('#overlayUrlBox');
+    box.text(url).show();
+    navigator.clipboard.writeText(url).then(() => {
+        showNotification('Overlay URL copied to clipboard! 📋', 'success');
+    }).catch(() => {
+        showNotification('Could not auto-copy. Please copy manually from below.', 'warning');
+    });
 }
 
 
@@ -187,9 +327,33 @@ function generateOverlay() {
         <div class="context-menu-item" onclick="moderateTwitch('timeout', 60)" style="color: #ffaa00;">Timeout (1m)</div>
         <div class="context-menu-item" onclick="moderateTwitch('timeout', 600)" style="color: #ffaa00;">Timeout (10m)</div>
         <div class="context-menu-item" onclick="moderateTwitch('timeout', 3600)" style="color: #ffaa00;">Timeout (1h)</div>
+        <div style="padding: 5px 10px; display: flex; gap: 5px;">
+            <input type="number" id="customTimeoutDuration" placeholder="Time" style="flex: 1; padding: 5px; border-radius: 4px; border: 1px solid #ffaa00; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box; outline: none; width: 60px;" onclick="event.stopPropagation();">
+            <select id="customTimeoutUnit" style="padding: 5px; border-radius: 4px; border: 1px solid #ffaa00; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; outline: none;" onclick="event.stopPropagation();">
+                <option value="1">Secs</option>
+                <option value="60" selected>Mins</option>
+                <option value="3600">Hours</option>
+                <option value="86400">Days</option>
+            </select>
+            <button onclick="moderateTwitch('timeout', 'custom')" style="background: #ffaa00; color: #111; border: none; border-radius: 4px; padding: 0 10px; cursor: pointer; font-weight: bold; font-size: 0.9em;">Go</button>
+        </div>
         <div class="context-menu-item" onclick="moderateTwitch('delete')" style="color: #ffaa00;">Delete Message</div>
         <div class="context-menu-item" onclick="moderateTwitch('ban')" style="color: #ff5555; border-top: 1px solid #444; margin-top: 5px; padding-top: 5px;">Ban User</div>
         <input type="text" id="twitchModerateReason" placeholder="Reason (optional)" style="width: calc(100% - 20px); margin: 5px 10px 10px; padding: 5px; border-radius: 4px; border: 1px solid #58a6ff; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box; outline: none;" onclick="event.stopPropagation();">
     </div>
+
+    <!-- Banned/Timed-out Users Modal -->
+    <div id="bannedUsersModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1c2e; border: 1px solid #9146FF; border-radius: 14px; padding: 22px; min-width: 360px; max-width: 480px; z-index: 9999; box-shadow: 0 8px 40px rgba(0,0,0,0.7);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; color: #e3e5eb; font-size: 1em; display: flex; align-items: center; gap: 8px;">🛡️ Banned / Timed-out Users</h3>
+            <button onclick="$('#bannedUsersModal').hide()" style="background: none; border: none; color: #aaa; font-size: 1.4em; cursor: pointer; line-height: 1;">✕</button>
+        </div>
+        <div id="bannedUsersList" style="max-height: 340px; overflow-y: auto;" class="custom-scrollbar">
+            <div style="text-align: center; color: #aaa;">Loading...</div>
+        </div>
+    </div>
+    <!-- Modal backdrop -->
+    <div id="bannedUsersBackdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9998;" onclick="$('#bannedUsersModal').hide(); $('#bannedUsersBackdrop').hide();"></div>
+
 </body>
 </html>

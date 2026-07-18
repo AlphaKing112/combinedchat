@@ -1773,8 +1773,20 @@ function moderateTwitch(action, duration = null) {
     const { userId, roomId, messageId } = currentTwitchContextMenuData;
     const reason = $('#twitchModerateReason').val().trim();
     
+    let finalDuration = duration;
+    if (duration === 'custom') {
+        const val = parseInt($('#customTimeoutDuration').val());
+        const unit = parseInt($('#customTimeoutUnit').val());
+        if (isNaN(val) || val <= 0) {
+            showNotification('Please enter a valid timeout duration.', 'error');
+            return;
+        }
+        finalDuration = val * unit;
+    }
+    
     $('#twitchContextMenu').hide();
     $('#twitchModerateReason').val(''); // Clear the reason
+    $('#customTimeoutDuration').val(''); // Clear custom timeout
     
     fetch('/api/twitch/moderate', {
         method: 'POST',
@@ -1784,7 +1796,7 @@ function moderateTwitch(action, duration = null) {
             targetUserId: userId,
             broadcasterId: roomId,
             messageId: messageId,
-            duration: duration,
+            duration: finalDuration,
             reason: reason
         })
     }).then(res => res.json())
