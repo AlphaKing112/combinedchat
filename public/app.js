@@ -436,16 +436,17 @@ $(document).ready(() => {
     if (window.connection && window.connection.socket) {
         // Listen for TikTok chat events via Socket.IO
         window.connection.socket.on('chat', function(msg) {
-            const tiktokMessage = `<div class="tiktok-message">
+            const isMainChat = $('.chatcontainer').length > 0;
+            const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
+            const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
+            
+            const tiktokMessage = `<div class="tiktok-message chat-msg">
                 <img class="miniprofilepicture" src="${msg.profilePictureUrl || ''}">
                 <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 448 512"><path fill="#FFFFFF" d="M448 209.9a210.1 210.1 0 0 1-122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.2 121.2 0 0 0 1.9 22.2h0A122.2 122.2 0 0 0 381 102.4a121.4 121.4 0 0 0 67 20.1z"/></svg>
                 <b>${msg.nickname || msg.uniqueId}:</b>
                 <span>${sanitize(msg.comment)}</span>
             </div>`;
             
-            const isMainChat = $('.chatcontainer').length > 0;
-            const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
-            const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
             container.append(tiktokMessage);
             
             // Limit to 100 messages
@@ -462,25 +463,61 @@ $(document).ready(() => {
             if (isMainChat) attachChatScrollHandler(); // Re-attach in case container was replaced
         });
         
+        // Recursive function to safely find viewer count
+        function extractViewerCount(obj) {
+            let maxCount = -1;
+            function search(o) {
+                if (!o || typeof o !== 'object') return;
+                for (let key in o) {
+                    let k = key.toLowerCase();
+                    if (k === 'viewercount' || k === 'usercount' || k === 'total') {
+                        let val = parseInt(o[key], 10);
+                        if (!isNaN(val) && val > maxCount) maxCount = val;
+                    }
+                    if (typeof o[key] === 'object') {
+                        search(o[key]);
+                    }
+                }
+            }
+            try { search(obj); } catch (e) {}
+            return maxCount;
+        }
+
         // TikTok live status events
-        window.connection.socket.on('tiktokConnected', function(state) {
-            console.log('[LiveStatus] TikTok connected event fired, state:', state);
+        window.connection.socket.on('tiktokConnected', (state) => {
+            console.log('[TikTok] Connected:', state);
+            tiktokConnected = true;
+            $('#tiktokFiltersContainer').show();
             setLiveDot('tiktokDot', true);
             $('#connectButton').val('disconnect');
-            $('#stateText').text(`Connected to roomId ${state && state.roomId ? state.roomId : ''}`);
             
-            // Reset stats
+            // reset stats
             viewerCount = 0;
             likeCount = 0;
             diamondsCount = 0;
+            
+            if (state) {
+                let vCount = extractViewerCount(state);
+                if (vCount > -1) viewerCount = vCount;
+                
+                try {
+                    let str = JSON.stringify(state);
+                    let likeMatches = [...str.matchAll(/"(?:likeCount|like_count|totalLikeCount)":\s*"?(\d+)"?/gi)];
+                    if (likeMatches.length > 0) {
+                        likeCount = Math.max(...likeMatches.map(m => parseInt(m[1], 10)));
+                    }
+                } catch(e) {}
+            }
             updateRoomStats();
             
             // Removed empty() call so connecting to TikTok doesn't wipe Kick/Twitch messages
             attachChatScrollHandler();
         });
         
-        window.connection.socket.on('tiktokDisconnected', function(reason) {
-            console.log('[LiveStatus] TikTok disconnected event fired, reason:', reason);
+        window.connection.socket.on('tiktokDisconnected', (reason) => {
+            console.log('[TikTok] Disconnected:', reason);
+            tiktokConnected = false;
+            $('#tiktokFiltersContainer').hide();
             setLiveDot('tiktokDot', false);
             $('#connectButton').val('connect');
             $('#stateText').text(reason);
@@ -495,23 +532,29 @@ $(document).ready(() => {
         
         // Other TikTok events
         window.connection.socket.on('roomUser', (msg) => {
-            if (typeof msg.viewerCount === 'number') {
-                viewerCount = msg.viewerCount;
+            let vCount = extractViewerCount(msg);
+            if (vCount > -1) {
+                viewerCount = vCount;
                 updateRoomStats();
             }
         });
         
         window.connection.socket.on('like', (data) => {
             if (typeof data.totalLikeCount === 'number') {
-                likeCount = data.totalLikeCount;
-                updateRoomStats();
+                likeCount = Math.max(likeCount, data.totalLikeCount);
+            } else if (typeof data.likeCount === 'number') {
+                likeCount += data.likeCount;
+            } else if (typeof data.count === 'number') {
+                likeCount += data.count;
             }
+            updateRoomStats();
             handleEventLive(ENUM_TYPE_ACTION.LIKE, data);
         });
         
         window.connection.socket.on('gift', (data) => {
-            if (typeof data.diamondCount === 'number') {
-                diamondsCount += data.diamondCount;
+            let dc = parseInt(data.diamondCount, 10);
+            if (!isNaN(dc)) {
+                diamondsCount += dc;
                 updateRoomStats();
             }
             handleEventLive(ENUM_TYPE_ACTION.GIFT, data);
@@ -528,7 +571,7 @@ $(document).ready(() => {
             const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
             
             container.append(
-                `<div class="tiktok-message">
+                `<div class="tiktok-message join-msg">
                     <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
                     <b>${data.nickname || data.uniqueId}:</b>
                     <span style="color: #00ff00;">🚪 joined the chat</span>
@@ -556,7 +599,6 @@ $(document).ready(() => {
         });
         
         // TWITCH CHAT HANDLING
-
         window.connection.socket.on('twitchConnected', function(data) {
             console.log('[Twitch] Connected:', data);
             setLiveDot('twitchDot', true);
@@ -564,9 +606,13 @@ $(document).ready(() => {
             $('#stateText').text(`Connected to Twitch: ${data.channelName}`);
             $('#chatInputContainer').css('display', 'flex');
             $('#twitchClipButton').show();
+            $('#twitchPlayerButton').show();
             
             if (data.channelName) {
                 currentTwitchChannelName = data.channelName;
+            }
+            if (data.roomId) {
+                window.currentTwitchRoomId = data.roomId;
             }
         });
 
@@ -576,7 +622,35 @@ $(document).ready(() => {
             $('#twitchConnectButton').val('connect');
             $('#chatInputContainer').hide();
             $('#twitchClipButton').hide();
+            $('#twitchPlayerButton').hide();
+            if (typeof toggleTwitchPlayer === 'function' && isTwitchPlayerShowing) {
+                toggleTwitchPlayer();
+            }
             currentTwitchChannelName = null;
+            window.currentTwitchRoomId = null;
+        });
+
+        window.connection.socket.on('twitchMessageDeleted', function(data) {
+            console.log('[Twitch] Message Deleted:', data);
+            $(`#twitch-msg-${data.messageId} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
+            if (typeof showNotification === 'function') showNotification('Message deleted', 'info');
+        });
+
+        window.connection.socket.on('twitchTimeout', function(data) {
+            console.log('[Twitch] User Timeout:', data);
+            $(`.twitch-username-${data.username.toLowerCase()} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
+            if (typeof showNotification === 'function') showNotification(`User timed out for ${data.duration}s`, 'warning');
+        });
+
+        window.connection.socket.on('twitchBan', function(data) {
+            console.log('[Twitch] User Banned:', data);
+            $(`.twitch-username-${data.username.toLowerCase()} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
+            if (typeof showNotification === 'function') showNotification(`User banned`, 'error');
+        });
+
+        window.connection.socket.on('twitchClearChat', function() {
+            $('.twitch-message').remove();
+            if (typeof showNotification === 'function') showNotification('Chat cleared by moderator', 'info');
         });
 
         function parseTwitchEmotes(message, emotes) {
@@ -638,7 +712,14 @@ $(document).ready(() => {
         }
 
         window.connection.socket.on('twitchChat', function(data) {
-            window.currentTwitchRoomId = data.tags && data.tags['room-id'] ? data.tags['room-id'] : window.currentTwitchRoomId;
+            console.log('[Twitch] Chat received:', data);
+            setLiveDot('twitchDot', true);
+            
+            if (!window.currentTwitchRoomId && data.tags && data.tags['room-id']) {
+                window.currentTwitchRoomId = data.tags['room-id'];
+                if (typeof startAdTracker === 'function') startAdTracker();
+            }
+            
             let color = data.tags && data.tags.color ? data.tags.color : '#9146FF';
             let displayName = data.tags && data.tags['display-name'] ? data.tags['display-name'] : data.username;
             
@@ -659,8 +740,9 @@ $(document).ready(() => {
             let safeDisplayName = sanitize(displayName).replace(/'/g, "\\'");
             const parsedMessage = parseTwitchEmotes(data.message, data.tags.emotes);
             
-            const twitchMessage = `<div class="twitch-message">
-                <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 512 512"><path fill="#9146FF" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73c-15.1 14.3-30 14.3-58 14.3H236.6l-77.3 73.1v-73.1H91.9V36.6h357.2z"/></svg>
+            const rawUsername = data.username || (data.tags && data.tags.username) || displayName || 'unknown';
+            const twitchMessage = `<div class="twitch-message twitch-user-${data.tags['user-id']} twitch-username-${rawUsername.toLowerCase()}" id="twitch-msg-${data.tags.id}">
+                <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 512 512"><path fill="#9146FF" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73-15.1 14.3-30 14.3-58 14.3H236.6l-77.3 73.1v-73.1H91.9V36.6h357.2z"/></svg>
                 ${profilePicHtml}
                 ${badgeHtml}<b style="color: ${color}; cursor: pointer;" onclick="showTwitchContextMenu(event, '${data.tags['user-id']}', '${data.tags['room-id']}', '${data.tags.id}', '${safeDisplayName}')">${sanitize(displayName)}:</b>
                 <span>${parsedMessage}</span>
@@ -768,6 +850,93 @@ function updateRoomStats() {
     );
 }
 
+// State variables for Twitch Player
+let twitchPlayer = null;
+let isTwitchPlayerShowing = false;
+window.currentTwitchRoomId = null;
+
+// Ad Tracking Variables
+let adCheckInterval = null;
+
+function startAdTracker() {
+    if (adCheckInterval) clearInterval(adCheckInterval);
+    
+    adCheckInterval = setInterval(async () => {
+        if (!window.currentTwitchRoomId) return;
+        
+        try {
+            const res = await fetch(`/api/twitch/ads?broadcasterId=${window.currentTwitchRoomId}`);
+            const data = await res.json();
+            
+            if (data.error) {
+                $('#twitchAdTracker').hide();
+                return;
+            }
+            
+            if (data && data.data && data.data.length > 0) {
+                $('#twitchAdTracker').show();
+                const adInfo = data.data[0];
+                
+                const now = Math.floor(Date.now() / 1000);
+                const lastAdTime = Math.floor(new Date(adInfo.last_ad_at).getTime() / 1000);
+                const nextAdTime = Math.floor(new Date(adInfo.next_ad_at).getTime() / 1000);
+                const duration = adInfo.duration;
+                
+                if (now >= lastAdTime && now < (lastAdTime + duration)) {
+                    // Ad is currently playing
+                    const remaining = (lastAdTime + duration) - now;
+                    $('#twitchAdStatus').text(`Ads Playing (${remaining}s left)`);
+                    $('#twitchAdTracker').css('background', 'rgba(255, 85, 85, 0.4)').css('color', '#ff5555');
+                } else if (adInfo.preroll_free_time > 0) {
+                    $('#twitchAdStatus').text(`Pre-roll free for ${Math.floor(adInfo.preroll_free_time / 60)}m ${adInfo.preroll_free_time % 60}s`);
+                    $('#twitchAdTracker').css('background', 'rgba(0, 255, 0, 0.2)').css('color', '#00ff00');
+                } else {
+                    const timeUntilNext = nextAdTime - now;
+                    if (timeUntilNext > 0) {
+                        $('#twitchAdStatus').text(`Next ad in ${Math.floor(timeUntilNext / 60)}m ${timeUntilNext % 60}s`);
+                        $('#twitchAdTracker').css('background', 'rgba(145, 70, 255, 0.2)').css('color', '#e3e5eb');
+                    } else {
+                        $('#twitchAdStatus').text(`Ad scheduled (Snoozes: ${adInfo.snooze_count})`);
+                        $('#twitchAdTracker').css('background', 'rgba(255, 170, 0, 0.2)').css('color', '#ffaa00');
+                    }
+                }
+            }
+        } catch (e) {
+            // Silently fail on network issues
+        }
+    }, 5000); // Check every 5 seconds
+}
+
+function toggleTwitchPlayer() {
+    isTwitchPlayerShowing = !isTwitchPlayerShowing;
+    
+    if (isTwitchPlayerShowing) {
+        $('#twitchPlayerContainer').show();
+        $('#twitchPlayerButton').val('Hide Stream');
+        $('#twitchPlayerButton').css('background-color', '#555');
+        
+        if (!twitchPlayer && currentTwitchChannelName) {
+            let options = {
+                width: 854,
+                height: 480,
+                channel: currentTwitchChannelName,
+                parent: [window.location.hostname, "localhost"]
+            };
+            twitchPlayer = new Twitch.Player("twitchPlayerContainer", options);
+            twitchPlayer.setVolume(0.5);
+        }
+    } else {
+        $('#twitchPlayerContainer').hide();
+        $('#twitchPlayerButton').val('Watch Stream');
+        $('#twitchPlayerButton').css('background-color', '#9146FF');
+        
+        if (twitchPlayer) {
+            $('#twitchPlayerContainer').empty();
+            twitchPlayer = null;
+        }
+    }
+}
+
 function generateUsernameLink(data) {
     return `<a class="usernamelink" href="https://www.tiktok.com/@${data.uniqueId}" target="_blank">${data.uniqueId}</a>`;
 }
@@ -781,20 +950,25 @@ function isPendingStreak(data) {
  */
 function handleEventLive(typeEvent, data) {
     if ([ENUM_TYPE_ACTION.SHARE_FOLLOW, ENUM_TYPE_ACTION.GIFT, ENUM_TYPE_ACTION.LIKE].includes(typeEvent)) {
-        if (idComment === data.msgId) return;
-        idComment = data.msgId;
+        if (data.msgId) {
+            let existingEvent = processedLikeEvents.find(c => c === data.msgId);
+            if (existingEvent) return;
+            processedLikeEvents.push(data.msgId);
+            if (processedLikeEvents.length > 500) processedLikeEvents.shift();
+        }
 
         const isMainChat = $('.chatcontainer').length > 0;
         const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
         const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
 
         if (typeEvent === ENUM_TYPE_ACTION.GIFT) {
-            if (Number.isInteger(data.diamondCount) && data.diamondCount > 0) {
+            let dc = parseInt(data.diamondCount, 10);
+            if (!isNaN(dc) && dc > 0) {
                 container.append(
-                    `<div class="tiktok-message">
+                    `<div class="tiktok-message gift-msg">
                         <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
                         <b>${data.nickname || data.uniqueId}:</b>
-                        <span>💎 [GIFT] sent ${data.diamondCount} diamonds</span>
+                        <span>💎 [GIFT] sent ${dc} diamonds</span>
                     </div>`
                 );
                 const chatEl = container[0];
@@ -804,7 +978,7 @@ function handleEventLive(typeEvent, data) {
             }
         } else if (typeEvent === ENUM_TYPE_ACTION.LIKE) {
             container.append(
-                `<div class="tiktok-message">
+                `<div class="tiktok-message like-msg">
                         <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
                         <b>${data.nickname || data.uniqueId}:</b>
                         <span style="color: red;">❤️ liked the stream</span>
@@ -816,10 +990,10 @@ function handleEventLive(typeEvent, data) {
             }
         } else {
             container.append(
-                `<div class="tiktok-message">
+                `<div class="tiktok-message follow-msg">
                         <img class="miniprofilepicture" src="${data.profilePictureUrl || ''}">
                         <b>${data.nickname || data.uniqueId}:</b>
-                        <span>⭐ shared or followed</span>
+                        <span>🤝 shared or followed</span>
                 </div>`
             );
             const chatEl = container[0];
@@ -1597,7 +1771,10 @@ function moderateTwitch(action, duration = null) {
     if (!currentTwitchContextMenuData) return;
     
     const { userId, roomId, messageId } = currentTwitchContextMenuData;
+    const reason = $('#twitchModerateReason').val().trim();
+    
     $('#twitchContextMenu').hide();
+    $('#twitchModerateReason').val(''); // Clear the reason
     
     fetch('/api/twitch/moderate', {
         method: 'POST',
@@ -1607,14 +1784,23 @@ function moderateTwitch(action, duration = null) {
             targetUserId: userId,
             broadcasterId: roomId,
             messageId: messageId,
-            duration: duration
+            duration: duration,
+            reason: reason
         })
     }).then(res => res.json())
       .then(data => {
-          if (data.error) alert('Moderation Error: ' + data.error);
-          else console.log('Moderation action successful:', action);
+          if (data.error) {
+              showNotification('Moderation Error: ' + data.error, 'error');
+          } else {
+              showNotification('Moderation action successful: ' + action, 'success');
+              if (action === 'delete' && messageId) {
+                  $(`#twitch-msg-${messageId} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
+              } else if (action === 'timeout' || action === 'ban') {
+                  $(`.twitch-user-${userId} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
+              }
+          }
       })
-      .catch(err => alert('Failed to moderate: ' + err.message));
+      .catch(err => showNotification('Failed to moderate: ' + err.message, 'error'));
 }
 
 // Hide context menu when clicking outside
@@ -1692,6 +1878,31 @@ function sendTwitchChat() {
     // Disable input while sending
     input.prop('disabled', true);
     $('#sendChatBtn').prop('disabled', true);
+    
+    // Handle chat commands
+    if (msg.toLowerCase() === '/clear') {
+        fetch('/api/twitch/moderate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'clear',
+                broadcasterId: window.currentTwitchRoomId
+            })
+        }).then(res => res.json())
+          .then(data => {
+              input.prop('disabled', false).val('');
+              $('#sendChatBtn').prop('disabled', false);
+              $('#chatInput').focus();
+              if (data.error) showNotification(`Error: ${data.error}`, 'error');
+              else showNotification('Chat cleared', 'success');
+          })
+          .catch(err => {
+              input.prop('disabled', false);
+              $('#sendChatBtn').prop('disabled', false);
+              showNotification(`Failed: ${err.message}`, 'error');
+          });
+        return;
+    }
     
     fetch('/api/twitch/chat', {
         method: 'POST',
@@ -1825,3 +2036,133 @@ $(document).click(function(event) {
         }
     }
 });
+
+function showNotification(message, type = 'info') {
+    let color = '#fff';
+    if (type === 'success') color = '#00ff00';
+    if (type === 'error') color = '#ff5555';
+    if (type === 'warning') color = '#ffaa00';
+    
+    const notification = $(`<div style="position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2a2a2a; color: ${color}; padding: 10px 20px; border-radius: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); z-index: 10000; font-size: 14px; opacity: 0; transition: all 0.3s ease; text-align: center; white-space: nowrap;">${message}</div>`);
+    $('body').append(notification);
+    
+    setTimeout(() => {
+        notification.css('opacity', '1').css('transform', 'translateX(-50%) translateY(0)');
+    }, 10);
+    
+    setTimeout(() => {
+        notification.css('opacity', '0').css('transform', 'translateX(-50%) translateY(20px)');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+function moderateTwitchInline(userId, messageId, action, username) {
+    if (!window.currentTwitchRoomId) {
+        showNotification("Twitch channel ID not available. Make sure you are connected.", 'error');
+        return;
+    }
+    
+    fetch('/api/twitch/moderate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: action,
+            targetUserId: userId,
+            broadcasterId: window.currentTwitchRoomId,
+            messageId: messageId
+        })
+    }).then(res => res.json())
+      .then(data => {
+          if (data.error) showNotification(`Error: ${data.error}`, 'error');
+          else {
+              showNotification(`${action} successful for ${username}`, 'success');
+              if (action === 'unban' || action === 'untimeout') {
+                  $(`.twitch-user-${userId}`).css('text-decoration', 'none').css('opacity', '1');
+              }
+          }
+      })
+      .catch(err => showNotification(`Failed: ${err.message}`, 'error'));
+}
+
+function showBannedUsersModal() {
+    const modal = $('#bannedUsersModal');
+    if (modal.is(':visible')) {
+        modal.hide();
+        return;
+    }
+    
+    if (!window.currentTwitchRoomId) {
+        showNotification("Not connected to Twitch", "error");
+        return;
+    }
+    
+    modal.show();
+    const list = $('#bannedUsersList');
+    list.html('<div style="text-align: center; color: #aaa;">Loading...</div>');
+    
+    fetch(`/api/twitch/banned?broadcasterId=${window.currentTwitchRoomId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            list.empty();
+            
+            if (!data.data || data.data.length === 0) {
+                list.html('<div style="text-align: center; color: #aaa;">No banned or timed-out users.</div>');
+                return;
+            }
+            
+            data.data.forEach(user => {
+                const isTimeout = user.expires_at !== "";
+                const dateStr = isTimeout ? new Date(user.expires_at).toLocaleString() : "Permanent";
+                const typeLabel = isTimeout ? `<span style="color: #ffaa00; font-size: 11px;">Timeout until ${dateStr}</span>` : `<span style="color: #ff5555; font-size: 11px;">Banned</span>`;
+                
+                const unbanBtnText = isTimeout ? 'Untimeout' : 'Unban';
+                const item = $(`
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; padding: 8px 10px; border-radius: 4px;">
+                        <div style="display: flex; flex-direction: column;">
+                            <strong style="color: #9146FF; font-size: 14px;">${user.user_name}</strong>
+                            ${typeLabel}
+                        </div>
+                        <button class="unban-btn" style="background: transparent; color: #ff5555; border: 1px solid #ff5555; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: background 0.2s;">${unbanBtnText}</button>
+                    </div>
+                `);
+                
+                item.find('.unban-btn').hover(
+                    function() { $(this).css({background: '#ff5555', color: '#fff'}); },
+                    function() { $(this).css({background: 'transparent', color: '#ff5555'}); }
+                ).click(function() {
+                    if (confirm(`Are you sure you want to ${unbanBtnText.toLowerCase()} ${user.user_name}?`)) {
+                        $(this).prop('disabled', true).text('...');
+                        fetch('/api/twitch/moderate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'unban',
+                                targetUserId: user.user_id,
+                                broadcasterId: window.currentTwitchRoomId
+                            })
+                        }).then(res => res.json())
+                          .then(data => {
+                              if (data.error) throw new Error(data.error);
+                              showNotification(`${unbanBtnText} successful for ${user.user_name}`, 'success');
+                              item.fadeOut(300, function() {
+                                  $(this).remove();
+                                  if ($('#bannedUsersList').children().length === 0) {
+                                      $('#bannedUsersList').html('<div style="text-align: center; color: #aaa;">No banned or timed-out users.</div>');
+                                  }
+                              });
+                          })
+                          .catch(err => {
+                              $(this).prop('disabled', false).text(unbanBtnText);
+                              showNotification(`Failed to ${unbanBtnText.toLowerCase()} ${user.user_name}: ${err.message}`, 'error');
+                          });
+                    }
+                });
+                
+                list.append(item);
+            });
+        })
+        .catch(err => {
+            $('#bannedUsersList').html(`<div style="color: #ff5555; text-align: center;">Error: ${err.message}</div>`);
+        });
+}

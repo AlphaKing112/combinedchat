@@ -238,11 +238,7 @@ io.on('connection', (socket) => {
         tiktokConnectionWrapper.connection.on('member', (data) => emitTikTok('member', data));
         tiktokConnectionWrapper.connection.on('gift', (data) => emitTikTok('gift', data));
         tiktokConnectionWrapper.connection.on('roomUser', (data) => {
-            if (typeof data.viewerCount === 'number') {
-                socket.emit('roomUser', data);
-            } else if (data.data && typeof data.data.viewerCount === 'number') {
-                socket.emit('roomUser', data.data);
-            }
+            socket.emit('roomUser', data);
         });
         tiktokConnectionWrapper.connection.on('like', (data) => {
             if (data.likeCount === undefined && data.count !== undefined) {
@@ -420,6 +416,19 @@ io.on('connection', (socket) => {
                     sessionId: sessionId
                 });
             });
+
+            kickChatClient.on('GiftedSubscriptions', (gift) => {
+                if (socket.currentKickSessionId !== sessionId) {
+                    return;
+                }
+                
+                console.log(`[Kick] Gifted Subscriptions received:`, gift);
+                socket.emit('kickGiftedSubscriptions', {
+                    data: gift,
+                    channelSlug: channelSlug,
+                    sessionId: sessionId
+                });
+            });
             
             kickChatClient.on('Follow', (follow) => {
                 if (socket.currentKickSessionId !== sessionId) {
@@ -510,13 +519,30 @@ io.on('connection', (socket) => {
                 tags: tags,
                 message: message,
                 timestamp: Date.now(),
-                profilePic: profilePic
+                profilePic: profilePic,
+                username: username
             });
         });
         
         twitchChatClient.on('disconnected', (reason) => {
             console.log(`[Twitch] Disconnected from ${channelName}: ${reason}`);
             socket.emit('twitchDisconnected', reason);
+        });
+
+        twitchChatClient.on('timeout', (channel, username, reason, duration, userstate) => {
+            socket.emit('twitchTimeout', { username, duration });
+        });
+
+        twitchChatClient.on('ban', (channel, username, reason, userstate) => {
+            socket.emit('twitchBan', { username });
+        });
+
+        twitchChatClient.on('messagedeleted', (channel, username, deletedMessage, userstate) => {
+            socket.emit('twitchMessageDeleted', { username, messageId: userstate['target-msg-id'] });
+        });
+
+        twitchChatClient.on('clearchat', (channel) => {
+            socket.emit('twitchClearChat');
         });
     });
 
@@ -551,7 +577,7 @@ setInterval(() => {
 
 // TWITCH MODERATION ENDPOINT
 app.post('/api/twitch/moderate', async (req, res) => {
-    const { action, targetUserId, broadcasterId, messageId, duration: reqDuration } = req.body;
+    const { action, targetUserId, broadcasterId, messageId, duration: reqDuration, reason: reqReason } = req.body;
     
     if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
         return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
@@ -583,6 +609,14 @@ app.post('/api/twitch/moderate', async (req, res) => {
                 }
             });
             return res.json({ success: true });
+        } else if (action === 'clear') {
+            await axios.delete(`https://api.twitch.tv/helix/moderation/chat?broadcaster_id=${broadcasterId}&moderator_id=${modId}`, {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+                }
+            });
+            return res.json({ success: true });
         } else if (action === 'timeout' || action === 'ban') {
             const duration = action === 'timeout' ? (reqDuration || 600) : undefined; // Use requested duration or default to 10 minutes
             
@@ -590,13 +624,21 @@ app.post('/api/twitch/moderate', async (req, res) => {
                 data: {
                     user_id: targetUserId,
                     duration: duration,
-                    reason: "Moderated via Chat Reader"
+                    reason: reqReason || "Moderated via Chat Reader"
                 }
             }, {
                 headers: {
                     'Client-ID': process.env.TWITCH_CLIENT_ID,
                     'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
                     'Content-Type': 'application/json'
+                }
+            });
+            return res.json({ success: true });
+        } else if (action === 'unban') {
+            await axios.delete(`https://api.twitch.tv/helix/moderation/bans?broadcaster_id=${broadcasterId}&moderator_id=${modId}&user_id=${targetUserId}`, {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
                 }
             });
             return res.json({ success: true });
@@ -620,7 +662,7 @@ app.post('/api/twitch/moderate', async (req, res) => {
             await axios.post(`https://api.twitch.tv/helix/moderation/warnings?broadcaster_id=${broadcasterId}&moderator_id=${modId}`, {
                 data: {
                     user_id: targetUserId,
-                    reason: "Warning via Chat Reader"
+                    reason: reqReason || "Warning via Chat Reader"
                 }
             }, {
                 headers: {
@@ -635,6 +677,29 @@ app.post('/api/twitch/moderate', async (req, res) => {
         return res.status(400).json({ error: 'Invalid action' });
     } catch (error) {
         console.error('[Twitch] Moderation Error:', error.response?.data || error.message);
+        return res.status(500).json({ error: error.response?.data?.message || error.message });
+    }
+});
+
+// TWITCH BANNED USERS ENDPOINT
+app.get('/api/twitch/banned', async (req, res) => {
+    const { broadcasterId } = req.query;
+    if (!broadcasterId) return res.status(400).json({ error: 'Missing broadcasterId' });
+    
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
+    }
+
+    try {
+        const response = await axios.get(`https://api.twitch.tv/helix/moderation/banned?broadcaster_id=${broadcasterId}&first=100`, {
+            headers: {
+                'Client-ID': process.env.TWITCH_CLIENT_ID,
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+            }
+        });
+        return res.json(response.data);
+    } catch (error) {
+        console.error('[Twitch] Get Banned Error:', error.response?.data || error.message);
         return res.status(500).json({ error: error.response?.data?.message || error.message });
     }
 });
@@ -830,14 +895,39 @@ app.get('/api/kick-avatar/:username', async (req, res) => {
 // Serve frontend files handled at the top
 
 // Global error handlers to prevent crashes
-process.on('uncaughtException', (error) => {
-    console.error('[Global] Uncaught Exception:', error);
+process.on('uncaughtException', function (err) {
+    console.error('Caught exception: ', err);
     // Don't exit the process, just log the error
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('[Global] Unhandled Rejection at:', promise, 'reason:', reason);
     // Don't exit the process, just log the error
+});
+
+// TWITCH AD SCHEDULE ENDPOINT
+app.get('/api/twitch/ads', async (req, res) => {
+    const { broadcasterId } = req.query;
+    
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured' });
+    }
+    
+    if (!broadcasterId) {
+        return res.status(400).json({ error: 'Missing broadcasterId' });
+    }
+
+    try {
+        const response = await axios.get(`https://api.twitch.tv/helix/channels/ads?broadcaster_id=${broadcasterId}`, {
+            headers: {
+                'Client-ID': process.env.TWITCH_CLIENT_ID,
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+            }
+        });
+        return res.json(response.data);
+    } catch (error) {
+        return res.status(500).json({ error: error.response?.data?.message || error.message });
+    }
 });
 
 // Start http listener

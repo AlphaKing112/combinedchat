@@ -352,6 +352,45 @@ input[type="button"]:hover {
     gap: 5px;
 }
 
+/* Kick Gifted Sub Styles */
+.kick-gifted-sub {
+    background: rgba(40,44,60,0.85) !important;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    padding: 8px 8px 8px 12px;
+    border-left: 4px solid #a855f7 !important;
+    box-shadow: 0 1px 4px #0003;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.1em;
+}
+.kick-gifted-sub-item {
+    background: rgba(40,44,60,0.85) !important;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    padding: 8px 8px 8px 12px;
+    border-left: 4px solid #a855f7 !important;
+    box-shadow: 0 1px 4px #0003;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.kick-gifted-sub-icon {
+    font-size: 1.4em;
+    color: #a855f7;
+    margin-right: 4px;
+}
+.kick-gifted-sub-column {
+    display: flex;
+    flex-direction: column;
+}
+.kick-gifted-sub-subtitle {
+    font-size: 0.85em;
+    color: #aaa;
+    margin-top: 2px;
+}
+
 .twitch-badges {
     font-size: 0.9em;
     margin-right: 4px;
@@ -599,7 +638,7 @@ input[type="button"]:hover {
 }
 .inputFields input[type="text"],
 .inputFields input[type="button"] {
-    display: block !important;
+    display: block;
     margin-left: auto !important;
     margin-right: auto !important;
     margin-bottom: 8px !important;
@@ -687,6 +726,22 @@ input[type="button"]:hover {
     color: white;
     font-family: inherit;
     min-width: 160px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+.context-menu::-webkit-scrollbar {
+    width: 6px;
+}
+.context-menu::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 6px;
+}
+.context-menu::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 6px;
+}
+.context-menu::-webkit-scrollbar-thumb:hover {
+    background: #777;
 }
 .context-menu-header {
     padding: 8px 15px;
@@ -694,6 +749,10 @@ input[type="button"]:hover {
     border-bottom: 1px solid #444;
     color: #9146FF;
     font-size: 1.1em;
+    position: sticky;
+    top: 0;
+    background: #2a2a2a;
+    z-index: 2;
 }
 .context-menu-item {
     padding: 10px 15px;
@@ -702,6 +761,55 @@ input[type="button"]:hover {
 }
 .context-menu-item:hover {
     background: #444;
+}
+
+#notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.notification-toast {
+    background: #333;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-family: 'Open Sans', sans-serif;
+    animation: slideInRight 0.3s ease-out forwards;
+    border-left: 4px solid #9146FF;
+    min-width: 200px;
+}
+.notification-toast.error {
+    border-left-color: #ff5555;
+}
+.notification-toast.success {
+    border-left-color: #53fc18;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+@keyframes fadeOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
 }
 
 #chatInput:focus {
@@ -751,3 +859,57 @@ input[type="button"]:hover {
 #toggleEmotePickerBtn:hover {
     color: #fff !important;
 }
+
+/* Chat Entry Animations */
+@keyframes anim-none {
+    from { opacity: 1; }
+    to { opacity: 1; }
+}
+@keyframes anim-popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+@keyframes anim-slideIn {
+    0% { transform: translateX(-100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes anim-fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+@keyframes anim-bounceIn {
+    0% { transform: translateY(20px); opacity: 0; }
+    40% { transform: translateY(-10px); opacity: 1; }
+    70% { transform: translateY(5px); }
+    100% { transform: translateY(0); }
+}
+@keyframes anim-zoomIn {
+    0% { transform: scale(0.1); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+@keyframes anim-flipIn {
+    0% { transform: perspective(400px) rotateX(90deg); opacity: 0; }
+    40% { transform: perspective(400px) rotateX(-20deg); }
+    60% { transform: perspective(400px) rotateX(10deg); opacity: 1; }
+    80% { transform: perspective(400px) rotateX(-5deg); }
+    100% { transform: perspective(400px) rotateX(0deg); opacity: 1; }
+}
+@keyframes anim-rotateIn {
+    0% { transform: rotate(-90deg); opacity: 0; }
+    100% { transform: rotate(0); opacity: 1; }
+}
+@keyframes anim-swingIn {
+    0% { transform: rotateX(-100deg); transform-origin: top; opacity: 0; }
+    100% { transform: rotateX(0); transform-origin: top; opacity: 1; }
+}
+@keyframes anim-rollIn {
+    0% { transform: translateX(-100%) rotate(-120deg); opacity: 0; }
+    100% { transform: translateX(0px) rotate(0deg); opacity: 1; }
+}
+/* Chat Filters */
+.hide-chats .tiktok-message.chat-msg { display: none !important; }
+.hide-joins .tiktok-message.join-msg { display: none !important; }
+.hide-likes .tiktok-message.like-msg { display: none !important; }
+.hide-gifts .tiktok-message.gift-msg { display: none !important; }
+.hide-follows .tiktok-message.follow-msg { display: none !important; }

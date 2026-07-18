@@ -29,9 +29,12 @@
                 <span class="live-dot" id="kickDot"></span>
                 <span style="font-size:1em;">Kick</span>
             </div>
-            <div id="twitchLiveStatus" style="display:flex;align-items:center;gap:6px;">
+            <div id="twitchLiveStatus" style="display:flex;align-items:center;gap:6px; position:relative;">
                 <span class="live-dot" id="twitchDot"></span>
                 <span style="font-size:1em;">Twitch</span>
+                <div id="twitchAdTracker" style="display: none; margin-left: 10px; font-size: 0.8em; background: rgba(145, 70, 255, 0.2); padding: 4px 10px; border-radius: 20px; color: #e3e5eb;">
+                    <span id="twitchAdStatus">Checking Ads...</span>
+                </div>
             </div>
         </div>
     </div>
@@ -185,7 +188,8 @@ function generateOverlay() {
         <div class="context-menu-item" onclick="moderateTwitch('timeout', 600)" style="color: #ffaa00;">Timeout (10m)</div>
         <div class="context-menu-item" onclick="moderateTwitch('timeout', 3600)" style="color: #ffaa00;">Timeout (1h)</div>
         <div class="context-menu-item" onclick="moderateTwitch('delete')" style="color: #ffaa00;">Delete Message</div>
-        <div class="context-menu-item" onclick="moderateTwitch('ban')" style="color: #ff5555;">Ban User</div>
+        <div class="context-menu-item" onclick="moderateTwitch('ban')" style="color: #ff5555; border-top: 1px solid #444; margin-top: 5px; padding-top: 5px;">Ban User</div>
+        <input type="text" id="twitchModerateReason" placeholder="Reason (optional)" style="width: calc(100% - 20px); margin: 5px 10px 10px; padding: 5px; border-radius: 4px; border: 1px solid #58a6ff; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box; outline: none;" onclick="event.stopPropagation();">
     </div>
 </body>
 </html>

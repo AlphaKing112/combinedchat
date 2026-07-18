@@ -23,6 +23,16 @@
             height: 0px;
         }
 
+        .eventcontainer {
+            height: 100vh !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            overflow-y: hidden !important; /* Let the chat auto-scroll handle it */
+            box-sizing: border-box;
+        }
+
         .eventcontainer > div {
             margin-top: 5px;
         }
@@ -39,12 +49,50 @@
                 $('body').css('color', window.settings.fontColor);
             }
 
+            // Always hide profile pics in OBS and add text shadow for readability
+            $('<style>')
+                .text(`
+                    .miniprofilepicture { display: none !important; }
+                    .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
+                        text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black, 0px 0px 4px black !important;
+                    }
+                `)
+                .appendTo('head');
+
             if (window.settings.bgColor) {
-                $('body').css('background-color', window.settings.bgColor);
+                let boxShadow = window.settings.bgColor === 'transparent' ? 'none' : '';
+                $('<style>')
+                    .text(`
+                        .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item { 
+                            background: ${window.settings.bgColor} !important; 
+                            ${boxShadow ? `box-shadow: ${boxShadow} !important; border: none !important;` : ''}
+                        }
+                        /* Restore left border for gifted subs if transparent */
+                        .kick-gifted-sub, .kick-gifted-sub-item {
+                            border-left: 4px solid #a855f7 !important;
+                        }
+                        
+                        /* Animation injection */
+                        ${window.settings.animation ? `
+                            .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
+                                animation: ${window.settings.animation} 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+                            }
+                        ` : ''}
+                    `)
+                    .appendTo('head');
             }
+            $('body').css('background-color', 'transparent');
 
             if (window.settings.fontSize) {
                 $('body').css('font-size', window.settings.fontSize);
+            }
+
+            if (window.settings.fontFamily) {
+                $('body').css('font-family', window.settings.fontFamily);
+            }
+
+            if (window.settings.fontWeight) {
+                $('body').css('font-weight', window.settings.fontWeight);
             }
         })
     </script>
@@ -55,7 +103,7 @@
 
 <body>
 
-    <table class="splitstatetable">
+    <table class="splitstatetable" style="display: none;">
         <tr>
             <td>
                 <pre id="stateText"></pre>
