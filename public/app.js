@@ -361,19 +361,23 @@ $(document).ready(() => {
                 .then(r => r.json())
                 .then(data => {
                     if (data.error) {
-                        $('#stateText').text(`Kick Error: ${data.error} (Cloudflare block or invalid channel)`);
+                        $('#stateText').text(`Kick Error: ${data.error} (Cloudflare block or invalid channel). Trying backend...`);
+                        window.connection.socket.emit('setKickLink', kickInput, null);
                         return;
                     }
                     const chatroomId = data.chatroom?.id || data.chatroom_id || data.id;
                     if (!chatroomId) {
-                        $('#stateText').text(`Kick Error: Could not find chatroom ID for ${kickInput}`);
+                        $('#stateText').text(`Kick Error: Could not find chatroom ID for ${kickInput}. Trying backend...`);
+                        window.connection.socket.emit('setKickLink', kickInput, null);
                         return;
                     }
                     window.connection.socket.emit('setKickLink', kickInput, chatroomId);
                 })
                 .catch(err => {
                     console.log('Frontend fetch failed', err);
-                    $('#stateText').text(`Kick Connection Failed: Network/CORS error fetching channel data.`);
+                    $('#stateText').text(`Kick Connection Failed: Network/CORS error fetching channel data. Trying backend fallback...`);
+                    // IMPORTANT: Emit without chatroomId so backend can fallback
+                    window.connection.socket.emit('setKickLink', kickInput, null);
                 });
             
             // Refresh bolbal emotes when connecting to Kick
@@ -1303,19 +1307,23 @@ $(document).ready(function() {
             .then(r => r.json())
             .then(data => {
                 if (data.error) {
-                    $('#stateText').text(`Kick Error: ${data.error} (Cloudflare block or invalid channel)`);
+                    $('#stateText').text(`Kick Error: ${data.error} (Cloudflare block or invalid channel). Trying backend...`);
+                    window.connection.socket.emit('setKickLink', kickInput, null);
                     return;
                 }
                 const chatroomId = data.chatroom?.id || data.chatroom_id || data.id;
                 if (!chatroomId) {
-                    $('#stateText').text(`Kick Error: Could not find chatroom ID for ${kickInput}`);
+                    $('#stateText').text(`Kick Error: Could not find chatroom ID for ${kickInput}. Trying backend...`);
+                    window.connection.socket.emit('setKickLink', kickInput, null);
                     return;
                 }
                 window.connection.socket.emit('setKickLink', kickInput, chatroomId);
             })
             .catch(err => {
                 console.log('Frontend fetch failed', err);
-                $('#stateText').text(`Kick Connection Failed: Network/CORS error fetching channel data.`);
+                $('#stateText').text(`Kick Connection Failed: Network/CORS error fetching channel data. Trying backend fallback...`);
+                // IMPORTANT: Emit without chatroomId so backend can fallback
+                window.connection.socket.emit('setKickLink', kickInput, null);
             });
         
         // Refresh bolbal emotes when connecting to Kick
