@@ -326,13 +326,35 @@ io.on('connection', (socket) => {
             } catch (error) {
                 console.log(`[Kick] Public API failed for ${channelSlug}:`, error.message);
                 
-                // Be more lenient - still allow connection even if API fails
-                // This could happen if the channel exists but API is having issues
+                let fetchedChatroomId = null;
+                console.log(`[Kick] Trying Puppeteer to fetch chatroom ID...`);
+                try {
+                    const browser = await puppeteer.launch({
+                        headless: "new",
+                        args: process.env.PUPPETEER_ARGS ? process.env.PUPPETEER_ARGS.split(' ') : ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+                    });
+                    const page = await browser.newPage();
+                    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+                    await page.goto(`https://kick.com/api/v1/channels/${channelSlug}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                    const content = await page.evaluate(() => {
+                        const pre = document.querySelector('pre');
+                        return pre ? pre.innerText : document.body.innerText;
+                    });
+                    const data = JSON.parse(content);
+                    if (data && (data.chatroom?.id || data.chatroom_id || data.id)) {
+                        fetchedChatroomId = data.chatroom?.id || data.chatroom_id || data.id;
+                        console.log(`[Kick] Puppeteer fetched chatroom ID: ${fetchedChatroomId}`);
+                    }
+                    await browser.close();
+                } catch (puppeteerErr) {
+                    console.error(`[Kick] Puppeteer also failed to fetch chatroomId:`, puppeteerErr.message);
+                }
+
                 console.log(`[Kick] Proceeding with connection despite API failure`);
                 socket.emit('kickConnected', { channelSlug });
                 
                 // Start Kick chat client anyway
-                startKickChatClient(channelSlug, thisSessionId);
+                startKickChatClient(channelSlug, thisSessionId, fetchedChatroomId);
             }
             
         } catch (error) {
