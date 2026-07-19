@@ -44,90 +44,105 @@
     <script>
         window.settings = Object.fromEntries(new URLSearchParams(location.search));
 
-        window.addEventListener('load', () => {
+        function applyDynamicOverlaySettings(settings) {
+            if (!settings) return;
+            window.settings = { ...window.settings, ...settings };
+            
+            // Remove old dynamic styles if they exist
+            $('#dynamic-overlay-styles').remove();
+            
+            let styleCss = '';
+            
             if (window.settings.fontColor) {
-                $('body').css('color', window.settings.fontColor);
+                styleCss += `body { color: ${window.settings.fontColor} !important; }\n`;
             }
 
             // Always hide profile pics in OBS and add text shadow for readability
-            $('<style>')
-                .text(`
-                    .miniprofilepicture { display: none !important; }
-                    .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
-                        text-shadow: 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black, 0px 0px 8px black !important;
-                    }
-                `)
-                .appendTo('head');
+            styleCss += `
+                .miniprofilepicture { display: none !important; }
+                .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
+                    text-shadow: 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black, 0px 0px 8px black !important;
+                }
+            `;
 
             if (window.settings.bgColor) {
                 let boxShadow = window.settings.bgColor === 'transparent' ? 'none' : '';
-                $('<style>')
-                    .text(`
-                        .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item { 
-                            background: ${window.settings.bgColor} !important; 
-                            ${boxShadow ? `box-shadow: ${boxShadow} !important; border: none !important;` : ''}
+                styleCss += `
+                    .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item { 
+                        background: ${window.settings.bgColor} !important; 
+                        ${boxShadow ? `box-shadow: ${boxShadow} !important; border: none !important;` : ''}
+                    }
+                    /* Restore left border for gifted subs if transparent */
+                    .kick-gifted-sub, .kick-gifted-sub-item {
+                        border-left: 4px solid #a855f7 !important;
+                    }
+                `;
+                
+                if (window.settings.animation) {
+                    styleCss += `
+                        .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
+                            animation: ${window.settings.animation} 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
                         }
-                        /* Restore left border for gifted subs if transparent */
-                        .kick-gifted-sub, .kick-gifted-sub-item {
-                            border-left: 4px solid #a855f7 !important;
-                        }
-                        
-                        /* Animation injection */
-                        ${window.settings.animation ? `
-                            .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
-                                animation: ${window.settings.animation} 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
-                            }
-                        ` : ''}
-                    `)
-                    .appendTo('head');
+                    `;
+                }
             }
-            $('body').css('background-color', 'transparent');
+            styleCss += `body { background-color: transparent !important; }\n`;
 
             if (window.settings.fontSize) {
-                $('body').css('font-size', window.settings.fontSize);
+                styleCss += `body { font-size: ${window.settings.fontSize} !important; }\n`;
             }
 
             if (window.settings.fontFamily) {
-                $('body').css('font-family', window.settings.fontFamily);
+                styleCss += `body { font-family: ${window.settings.fontFamily} !important; }\n`;
                 // Load Google Font if needed
                 const googleFonts = ['Roboto','Outfit','Poppins','Nunito','Montserrat','Oswald','Bebas Neue'];
                 const fontName = window.settings.fontFamily.replace(/['"]/g, '').split(',')[0].trim();
                 if (googleFonts.some(f => f.toLowerCase() === fontName.toLowerCase())) {
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700&display=swap`;
-                    document.head.appendChild(link);
+                    if (!$(`link[href*="${encodeURIComponent(fontName)}"]`).length) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;700&display=swap`;
+                        document.head.appendChild(link);
+                    }
                 }
             }
 
             if (window.settings.textShadow) {
-                $('<style>').text(`
-                    body, body * { text-shadow: ${window.settings.textShadow} !important; }
-                `).appendTo('head');
+                styleCss += `body, body * { text-shadow: ${window.settings.textShadow} !important; }\n`;
             } else {
-                // Default: always apply drop shadow for readability
-                $('<style>').text(`
-                    body, body * { text-shadow: 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black, 0px 0px 8px black !important; }
-                `).appendTo('head');
+                styleCss += `body, body * { text-shadow: 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black, 0px 0px 8px black !important; }\n`;
             }
             
-            // Apply filter settings
+            $('body').removeClass('hide-tiktok-likes hide-tiktok-follows hide-tiktok-joins');
             if (window.settings.showLikes === '0') $('body').addClass('hide-tiktok-likes');
             if (window.settings.showFollows === '0') $('body').addClass('hide-tiktok-follows');
             if (window.settings.showJoins === '0') $('body').addClass('hide-tiktok-joins');
+            
             if (window.settings.showChats === '0') {
-                $('<style>').text('.chat-msg, .kick-message, .twitch-message { display: none !important; }').appendTo('head');
+                styleCss += `.chat-msg, .kick-message, .twitch-message { display: none !important; }\n`;
             }
 
-            // Always bold by default
             const fw = window.settings.fontWeight || '700';
-            $('<style>').text(`
-                body, body * { font-weight: ${fw} !important; }
-            `).appendTo('head');
+            styleCss += `body, body * { font-weight: ${fw} !important; }\n`;
 
             if (window.settings.fontWeight) {
-                $('body').css('font-weight', window.settings.fontWeight);
+                styleCss += `body { font-weight: ${window.settings.fontWeight} !important; }\n`;
             }
+
+            $('<style>').attr('id', 'dynamic-overlay-styles').text(styleCss).appendTo('head');
+        }
+
+        window.addEventListener('load', () => {
+            applyDynamicOverlaySettings(window.settings);
+            
+            // Wait a short moment to ensure window.connection is initialized by app.js
+            setTimeout(() => {
+                if (window.connection) {
+                    window.connection.on('overlaySettingsUpdated', (settings) => {
+                        applyDynamicOverlaySettings(settings);
+                    });
+                }
+            }, 500);
         })
     </script>
 

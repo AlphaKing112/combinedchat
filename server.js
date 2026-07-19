@@ -88,6 +88,7 @@ app.use(express.json());
 
 
 
+let globalOverlaySettings = {};
 
 io.on('connection', (socket) => {
     let tiktokConnectionWrapper = null;
@@ -126,8 +127,12 @@ io.on('connection', (socket) => {
         socket.emit('tiktokDisconnected', 'Disconnected');
     });
 
+    // Send initial settings to the new client
+    socket.emit('overlaySettingsUpdated', globalOverlaySettings);
+
     // TIKTOK CHAT HANDLING
     socket.on('updateOverlaySettings', (settings) => {
+        globalOverlaySettings = settings;
         io.emit('overlaySettingsUpdated', settings);
     });
     socket.on('setUniqueId', (uniqueId, options) => {

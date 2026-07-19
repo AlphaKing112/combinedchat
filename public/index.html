@@ -316,30 +316,6 @@ function buildOverlayUrl() {
     if (kickChannel)    params.push('kick=' + encodeURIComponent(kickChannel));
     if (twitchChannel)  params.push('twitch=' + encodeURIComponent(twitchChannel));
 
-    if (!$('#filterTiktokLikes').is(':checked')) params.push('showLikes=0');
-    if (!$('#filterTiktokFollows').is(':checked')) params.push('showFollows=0');
-    if (!$('#filterTiktokJoins').is(':checked')) params.push('showJoins=0');
-
-    const transparent = $('#overlayTransparent').is(':checked');
-    const bgColor   = transparent ? 'transparent' : ($('#overlayBgColor').val() || '#18171c');
-    const fontColor = $('#overlayFontColor').val()  || '#e3e5eb';
-    const fontSize  = $('#overlayFontSize').val()   || '1.3em';
-    const fontFamily = $('#overlayFont').val()      || 'Inter, sans-serif';
-    const animation = $('#overlayAnimation').val()  || '';
-    const disappear = $('#overlayDisappear').val()  || '0';
-    const hideBots = $('#overlayHideBots').is(':checked');
-    const showChats = $('#overlayShowChats').is(':checked');
-
-    params.push('bgColor='    + encodeURIComponent(bgColor));
-    params.push('fontColor='  + encodeURIComponent(fontColor));
-    params.push('fontSize='   + encodeURIComponent(fontSize));
-    params.push('fontFamily=' + encodeURIComponent(fontFamily));
-    if (animation) params.push('animation=' + encodeURIComponent(animation));
-    if (disappear !== '0') params.push('disappear=' + encodeURIComponent(disappear));
-    if (hideBots) params.push('hideBots=1');
-    if (!showChats) params.push('showChats=0');
-
-
 
     return { url: url + params.join('&'), hasChannel: !!(tiktokUsername || kickChannel || twitchChannel) };
 }
