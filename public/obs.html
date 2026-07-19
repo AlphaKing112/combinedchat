@@ -141,6 +141,10 @@
                     window.connection.on('overlaySettingsUpdated', (settings) => {
                         applyDynamicOverlaySettings(settings);
                     });
+                    
+                    window.connection.on('refreshOverlay', () => {
+                        window.location.reload();
+                    });
                 }
             }, 500);
         })

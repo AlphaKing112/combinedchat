@@ -135,6 +135,11 @@ io.on('connection', (socket) => {
         globalOverlaySettings = settings;
         io.emit('overlaySettingsUpdated', settings);
     });
+
+    socket.on('refreshOverlay', () => {
+        io.emit('refreshOverlay');
+    });
+
     socket.on('setUniqueId', (uniqueId, options) => {
         console.log(`[TikTok] Attempting to connect to: ${uniqueId}`);
 

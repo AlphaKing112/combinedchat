@@ -160,11 +160,21 @@
             <!-- Buttons -->
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px;">
                 <button onclick="previewOverlay()" style="background: #2a2d3e; color: #aaa; border: 1px solid #444; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">👁️ Preview</button>
+                <button onclick="refreshOverlay()" style="background: #d92d2d; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em;" title="Force refresh the OBS overlay if it freezes">🔄 Refresh</button>
                 <button onclick="generateOverlay()" style="background: linear-gradient(90deg, #58a6ff, #9146FF); color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95em; box-shadow: 0 2px 8px rgba(145,70,255,0.3);">🔗 Generate Overlay URL</button>
                 <button onclick="copyOverlayUrl()" style="background: #1db954; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">📋 Copy URL</button>
             </div>
             <div id="overlayUrlBox" style="display: none; margin-top: 12px; background: #0d0f18; border-radius: 6px; padding: 10px 14px; font-size: 0.82em; color: #58a6ff; word-break: break-all; border: 1px solid #333;"></div>
             <script>
+                function refreshOverlay() {
+                    if (window.connection && window.connection.socket) {
+                        window.connection.socket.emit('refreshOverlay');
+                        showNotification('Sent refresh command to OBS overlay!', 'success');
+                    } else {
+                        showNotification('Not connected to server!', 'error');
+                    }
+                }
+                
                 function saveOverlaySettings() {
                     const transparent = document.getElementById('overlayTransparent').checked;
                     const settings = {
