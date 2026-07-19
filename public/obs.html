@@ -115,6 +115,9 @@
             if (window.settings.showLikes === '0') $('body').addClass('hide-tiktok-likes');
             if (window.settings.showFollows === '0') $('body').addClass('hide-tiktok-follows');
             if (window.settings.showJoins === '0') $('body').addClass('hide-tiktok-joins');
+            if (window.settings.showChats === '0') {
+                $('<style>').text('.chat-msg, .kick-message, .twitch-message { display: none !important; }').appendTo('head');
+            }
 
             // Always bold by default
             const fw = window.settings.fontWeight || '700';
