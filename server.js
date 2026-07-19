@@ -127,6 +127,9 @@ io.on('connection', (socket) => {
     });
 
     // TIKTOK CHAT HANDLING
+    socket.on('updateOverlaySettings', (settings) => {
+        io.emit('overlaySettingsUpdated', settings);
+    });
     socket.on('setUniqueId', (uniqueId, options) => {
         console.log(`[TikTok] Attempting to connect to: ${uniqueId}`);
 

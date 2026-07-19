@@ -466,6 +466,58 @@ $(document).ready(() => {
 
     // TIKTOK CHAT HANDLING - Use Socket.IO connection
     if (window.connection && window.connection.socket) {
+        
+        // Listen for live overlay setting updates
+        window.connection.socket.on('overlaySettingsUpdated', (newSettings) => {
+            if (window.location.pathname.includes('obs.html')) {
+                // Merge settings
+                window.settings = Object.assign(window.settings || {}, newSettings);
+                
+                // Update basic body CSS
+                if (window.settings.fontSize) $('body').css('font-size', window.settings.fontSize);
+                if (window.settings.fontFamily) $('body').css('font-family', window.settings.fontFamily);
+                
+                // Build dynamic CSS block
+                let dynamicCss = `
+                    body, body * { font-weight: 700 !important; }
+                    body, body * { text-shadow: 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black, 0px 0px 8px black !important; }
+                    .miniprofilepicture { display: none !important; }
+                `;
+                
+                if (window.settings.bgColor) {
+                    let boxShadow = window.settings.bgColor === 'transparent' ? 'none' : '';
+                    dynamicCss += `
+                        .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item { 
+                            background: ${window.settings.bgColor} !important; 
+                            ${boxShadow ? `box-shadow: ${boxShadow} !important; border: none !important;` : ''}
+                        }
+                        .kick-gifted-sub, .kick-gifted-sub-item { border-left: 4px solid #a855f7 !important; }
+                    `;
+                }
+                
+                if (window.settings.animation) {
+                    dynamicCss += `
+                        .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
+                            animation: ${window.settings.animation} 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+                        }
+                    `;
+                }
+                
+                if (window.settings.showChats === '0') {
+                    dynamicCss += `.chat-msg, .kick-message, .twitch-message { display: none !important; }`;
+                }
+                
+                // Apply dynamic CSS
+                $('#dynamic-overlay-css').remove();
+                $('<style id="dynamic-overlay-css">').text(dynamicCss).appendTo('head');
+                
+                // Apply layout filters
+                if (window.settings.showLikes === '0') $('body').addClass('hide-tiktok-likes'); else $('body').removeClass('hide-tiktok-likes');
+                if (window.settings.showFollows === '0') $('body').addClass('hide-tiktok-follows'); else $('body').removeClass('hide-tiktok-follows');
+                if (window.settings.showJoins === '0') $('body').addClass('hide-tiktok-joins'); else $('body').removeClass('hide-tiktok-joins');
+            }
+        });
+        
         // Listen for TikTok chat events via Socket.IO
         window.connection.socket.on('chat', function(msg) {
             if (isBotMessage(msg.uniqueId)) return;

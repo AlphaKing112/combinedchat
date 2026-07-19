@@ -142,6 +142,13 @@
 
                     <div style="margin-top: 12px;">
                         <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="overlayShowChats" checked style="width:14px;height:14px;cursor:pointer;" onchange="saveOverlaySettings()">
+                            <span style="color: #aaa; font-size: 0.85em;">Show Text Chats</span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                             <input type="checkbox" id="overlayHideBots" style="width:14px;height:14px;cursor:pointer;" onchange="saveOverlaySettings()">
                             <span style="color: #aaa; font-size: 0.85em;">Hide Bot Messages</span>
                         </label>
@@ -159,17 +166,26 @@
             <div id="overlayUrlBox" style="display: none; margin-top: 12px; background: #0d0f18; border-radius: 6px; padding: 10px 14px; font-size: 0.82em; color: #58a6ff; word-break: break-all; border: 1px solid #333;"></div>
             <script>
                 function saveOverlaySettings() {
+                    const transparent = document.getElementById('overlayTransparent').checked;
                     const settings = {
-                        bgColor: document.getElementById('overlayBgColor').value,
+                        bgColor: transparent ? 'transparent' : document.getElementById('overlayBgColor').value,
                         fontColor: document.getElementById('overlayFontColor').value,
-                        transparent: document.getElementById('overlayTransparent').checked,
-                        font: document.getElementById('overlayFont').value,
+                        transparent: transparent,
+                        fontFamily: document.getElementById('overlayFont').value,
                         fontSize: document.getElementById('overlayFontSize').value,
                         animation: document.getElementById('overlayAnimation').value,
                         disappear: document.getElementById('overlayDisappear').value,
-                        hideBots: document.getElementById('overlayHideBots').checked
+                        hideBots: document.getElementById('overlayHideBots').checked ? '1' : '0',
+                        showChats: document.getElementById('overlayShowChats').checked ? '1' : '0',
+                        showLikes: document.getElementById('filterTiktokLikes').checked ? '1' : '0',
+                        showFollows: document.getElementById('filterTiktokFollows').checked ? '1' : '0',
+                        showJoins: document.getElementById('filterTiktokJoins').checked ? '1' : '0'
                     };
                     localStorage.setItem('overlaySettings', JSON.stringify(settings));
+                    
+                    if (window.connection && window.connection.socket) {
+                        window.connection.socket.emit('updateOverlaySettings', settings);
+                    }
                 }
 
                 function loadOverlaySettings() {
@@ -204,6 +220,9 @@
                             }
                             if (typeof settings.hideBots !== 'undefined') {
                                 document.getElementById('overlayHideBots').checked = settings.hideBots;
+                            }
+                            if (typeof settings.showChats !== 'undefined') {
+                                document.getElementById('overlayShowChats').checked = settings.showChats;
                             }
                         } catch (e) {
                             console.error('Failed to load overlay settings', e);
@@ -246,9 +265,9 @@
     <div id="roomStats">
       <div id="tiktokStats"></div>
       <div id="tiktokFilters" style="display: none; justify-content: center; gap: 15px; margin-top: 10px;">
-          <label><input type="checkbox" id="filterTiktokLikes" checked onchange="toggleTiktokFilters()"> Show Likes</label>
-          <label><input type="checkbox" id="filterTiktokFollows" checked onchange="toggleTiktokFilters()"> Show Follows/Shares</label>
-          <label><input type="checkbox" id="filterTiktokJoins" checked onchange="toggleTiktokFilters()"> Show Joins</label>
+          <label><input type="checkbox" id="filterTiktokLikes" checked onchange="toggleTiktokFilters(); saveOverlaySettings();"> Show Likes</label>
+          <label><input type="checkbox" id="filterTiktokFollows" checked onchange="toggleTiktokFilters(); saveOverlaySettings();"> Show Follows/Shares</label>
+          <label><input type="checkbox" id="filterTiktokJoins" checked onchange="toggleTiktokFilters(); saveOverlaySettings();"> Show Joins</label>
       </div>
     </div>
 
@@ -309,6 +328,7 @@ function buildOverlayUrl() {
     const animation = $('#overlayAnimation').val()  || '';
     const disappear = $('#overlayDisappear').val()  || '0';
     const hideBots = $('#overlayHideBots').is(':checked');
+    const showChats = $('#overlayShowChats').is(':checked');
 
     params.push('bgColor='    + encodeURIComponent(bgColor));
     params.push('fontColor='  + encodeURIComponent(fontColor));
@@ -317,6 +337,7 @@ function buildOverlayUrl() {
     if (animation) params.push('animation=' + encodeURIComponent(animation));
     if (disappear !== '0') params.push('disappear=' + encodeURIComponent(disappear));
     if (hideBots) params.push('hideBots=1');
+    if (!showChats) params.push('showChats=0');
 
 
 
