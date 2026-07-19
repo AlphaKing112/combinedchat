@@ -7,9 +7,40 @@ const BACKEND_URL = 'https://combinedchat-v4l0.onrender.com';
 // =====================
 
 // Ensure window.connection is always initialized
-if (!window.connection) {
-    window.connection = new TikTokIOConnection(BACKEND_URL);
+let connection = new TikTokIOConnection();
+window.connection = connection;
+
+// HELPER: Bot detection
+function isBotMessage(username) {
+    if (!username) return false;
+    const hideBots = (window.settings && window.settings.hideBots === '1') || 
+                     ($('#filterHideBots').length && $('#filterHideBots').is(':checked'));
+    if (!hideBots) return false;
+    
+    const bots = ['nightbot', 'streamelements', 'streamlabs', 'moobot', 'wizebot', 'fossabot', 'commanderroot', 'kofibot', 'botrix', 'soundalerts', 'pretzelrocks', 'sery_bot'];
+    return bots.includes(username.toLowerCase());
 }
+
+// HELPER: Message disappear logic (intercepts jQuery append)
+const originalAppend = $.fn.append;
+$.fn.append = function() {
+    let result = originalAppend.apply(this, arguments);
+    if (this.hasClass('chatcontainer') || this.hasClass('eventcontainer')) {
+        let secs = 0;
+        if (window.settings && window.settings.disappear) {
+            secs = parseInt(window.settings.disappear, 10);
+        }
+        if (secs > 0) {
+            this.children().not('.disappear-scheduled').each(function() {
+                $(this).addClass('disappear-scheduled');
+                setTimeout(() => {
+                    $(this).animate({ opacity: 0, height: 0, padding: 0, margin: 0, border: 0 }, 500, function() { $(this).remove(); });
+                }, secs * 1000);
+            });
+        }
+    }
+    return result;
+};
 
 // Counter
 let viewerCount = 0;
@@ -437,6 +468,7 @@ $(document).ready(() => {
     if (window.connection && window.connection.socket) {
         // Listen for TikTok chat events via Socket.IO
         window.connection.socket.on('chat', function(msg) {
+            if (isBotMessage(msg.uniqueId)) return;
             const isMainChat = $('.chatcontainer').length > 0;
             const container = isMainChat ? $('.chatcontainer') : $('.eventcontainer');
             const doScroll = isMainChat ? shouldAutoScroll : isChatScrolledToBottom();
@@ -750,6 +782,11 @@ $(document).ready(() => {
 
         window.connection.socket.on('twitchChat', function(data) {
             console.log('[Twitch] Chat received:', data);
+            
+            let displayName = data.tags && data.tags['display-name'] ? data.tags['display-name'] : data.username;
+            const rawUsername = data.username || (data.tags && data.tags.username) || displayName || 'unknown';
+            if (isBotMessage(rawUsername) || isBotMessage(displayName)) return;
+            
             setLiveDot('twitchDot', true);
             
             if (!window.currentTwitchRoomId && data.tags && data.tags['room-id']) {
@@ -763,7 +800,7 @@ $(document).ready(() => {
             }
             
             let color = data.tags && data.tags.color ? data.tags.color : '#9146FF';
-            let displayName = data.tags && data.tags['display-name'] ? data.tags['display-name'] : data.username;
+            // displayName is already declared above
             
             // Enhanced badge representation using fetched images
             let badgeHtml = '';
@@ -790,7 +827,7 @@ $(document).ready(() => {
             let safeDisplayName = sanitize(displayName).replace(/'/g, "\\'");
             const parsedMessage = parseTwitchEmotes(data.message, data.tags.emotes);
             
-            const rawUsername = data.username || (data.tags && data.tags.username) || displayName || 'unknown';
+            // rawUsername is already declared above
             const twitchMessage = `<div class="twitch-message twitch-user-${data.tags['user-id']} twitch-username-${rawUsername.toLowerCase()}" id="twitch-msg-${data.tags.id}">
                 <svg class="platform-icon" style="width:20px;height:20px;vertical-align:middle;margin-right:4px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.8));" viewBox="0 0 512 512"><path fill="#9146FF" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73-15.1 14.3-30 14.3-58 14.3H236.6l-77.3 73.1v-73.1H91.9V36.6h357.2z"/></svg>
                 ${profilePicHtml}
@@ -874,6 +911,13 @@ function connect() {
             // Show user-friendly message for offline users
             if (reason && typeof reason === 'string' && (reason.includes('not live') || reason.includes('offline') || reason.includes('not found'))) {
                 $('#stateText').text('User is not currently live. Please try a different username.');
+            }
+            
+            // Auto-reconnect for OBS overlay
+            if (window.settings && window.settings.username) {
+                setTimeout(() => {
+                    connect();
+                }, 30000);
             }
         });
         
@@ -1090,6 +1134,7 @@ function isPendingStreak(data) {
  * Add a new message to the chat container
  */
 function handleEventLive(typeEvent, data) {
+
     if ([ENUM_TYPE_ACTION.SHARE_FOLLOW, ENUM_TYPE_ACTION.GIFT, ENUM_TYPE_ACTION.LIKE].includes(typeEvent)) {
         if (data.msgId) {
             let existingEvent = processedLikeEvents.find(c => c === data.msgId);
@@ -1260,13 +1305,6 @@ function handleEventLive(typeEvent, data) {
 
 // connection.on('streamEnd', () => {
 //     $('#stateText').text('Stream ended.');
-//
-//     // schedule next try if obs username set
-//     if (window.settings.username) {
-//         setTimeout(() => {
-//             connect(window.settings.username);
-//         }, 30000);
-//     }
 // })
 
 // KICK CHAT FRONTEND LOGIC

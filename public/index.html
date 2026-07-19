@@ -128,6 +128,24 @@
                             <option value="anim-rollIn">Roll In</option>
                         </select>
                     </div>
+
+                    <div style="margin-top: 12px;">
+                        <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 4px;">Message Disappear (secs)</label>
+                        <select id="overlayDisappear" onchange="saveOverlaySettings()" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid #444; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; cursor: pointer;">
+                            <option value="0">Never</option>
+                            <option value="15">15 seconds</option>
+                            <option value="30">30 seconds</option>
+                            <option value="60">60 seconds</option>
+                            <option value="120">2 minutes</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="overlayHideBots" style="width:14px;height:14px;cursor:pointer;" onchange="saveOverlaySettings()">
+                            <span style="color: #aaa; font-size: 0.85em;">Hide Bot Messages</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             </div>
@@ -147,7 +165,9 @@
                         transparent: document.getElementById('overlayTransparent').checked,
                         font: document.getElementById('overlayFont').value,
                         fontSize: document.getElementById('overlayFontSize').value,
-                        animation: document.getElementById('overlayAnimation').value
+                        animation: document.getElementById('overlayAnimation').value,
+                        disappear: document.getElementById('overlayDisappear').value,
+                        hideBots: document.getElementById('overlayHideBots').checked
                     };
                     localStorage.setItem('overlaySettings', JSON.stringify(settings));
                 }
@@ -178,6 +198,12 @@
                             }
                             if (settings.animation) {
                                 document.getElementById('overlayAnimation').value = settings.animation;
+                            }
+                            if (settings.disappear) {
+                                document.getElementById('overlayDisappear').value = settings.disappear;
+                            }
+                            if (typeof settings.hideBots !== 'undefined') {
+                                document.getElementById('overlayHideBots').checked = settings.hideBots;
                             }
                         } catch (e) {
                             console.error('Failed to load overlay settings', e);
@@ -281,20 +307,18 @@ function buildOverlayUrl() {
     const fontSize  = $('#overlayFontSize').val()   || '1.3em';
     const fontFamily = $('#overlayFont').val()      || 'Inter, sans-serif';
     const animation = $('#overlayAnimation').val()  || '';
+    const disappear = $('#overlayDisappear').val()  || '0';
+    const hideBots = $('#overlayHideBots').is(':checked');
 
     params.push('bgColor='    + encodeURIComponent(bgColor));
     params.push('fontColor='  + encodeURIComponent(fontColor));
     params.push('fontSize='   + encodeURIComponent(fontSize));
     params.push('fontFamily=' + encodeURIComponent(fontFamily));
     if (animation) params.push('animation=' + encodeURIComponent(animation));
+    if (disappear !== '0') params.push('disappear=' + encodeURIComponent(disappear));
+    if (hideBots) params.push('hideBots=1');
 
-    // Always apply bold text and drop shadow
-    params.push('textShadow=' + encodeURIComponent('2px 2px 6px #000000'));
-    params.push('fontWeight=700');
 
-    // Always include all events
-    params.push('showChats=1');
-    params.push('showGifts=1');
 
     return { url: url + params.join('&'), hasChannel: !!(tiktokUsername || kickChannel || twitchChannel) };
 }

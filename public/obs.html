@@ -54,7 +54,7 @@
                 .text(`
                     .miniprofilepicture { display: none !important; }
                     .tiktok-message, .kick-message, .twitch-message, .chatcontainer div, .eventcontainer div, .kick-gifted-sub, .kick-gifted-sub-item {
-                        text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black, 0px 0px 4px black !important;
+                        text-shadow: 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black, 0px 0px 8px black !important;
                     }
                 `)
                 .appendTo('head');
@@ -107,7 +107,7 @@
             } else {
                 // Default: always apply drop shadow for readability
                 $('<style>').text(`
-                    body, body * { text-shadow: 2px 2px 6px #000000 !important; }
+                    body, body * { text-shadow: 2px 2px 4px black, -2px -2px 4px black, 2px -2px 4px black, -2px 2px 4px black, 0px 0px 8px black !important; }
                 `).appendTo('head');
             }
             
