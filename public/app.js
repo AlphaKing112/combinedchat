@@ -528,7 +528,7 @@ $(document).ready(() => {
             const tiktokMessage = `<div class="tiktok-message chat-msg">
                 <svg class="platform-icon" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.8));" viewBox="0 0 448 512"><path fill="#FFFFFF" d="M448 209.9a210.1 210.1 0 0 1-122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.2 121.2 0 0 0 1.9 22.2h0A122.2 122.2 0 0 0 381 102.4a121.4 121.4 0 0 0 67 20.1z"/></svg>
                 <img class="miniprofilepicture" src="${msg.profilePictureUrl || ''}">
-                <b style="color: ${stringToColor(msg.uniqueId)}">${msg.nickname || msg.uniqueId}:</b> <span class="message-text">${sanitize(msg.comment)}</span>
+                <b style="color: ${stringToColor(msg.uniqueId)}">${msg.nickname || msg.uniqueId}:</b> <span class="message-text">${linkify(sanitize(msg.comment))}</span>
             </div>`;
             
             container.append(tiktokMessage);
@@ -948,7 +948,7 @@ $(document).ready(() => {
             }
 
             let safeDisplayName = sanitize(displayName).replace(/'/g, "\\'");
-            const parsedMessage = parseTwitchEmotes(data.message, data.tags.emotes);
+            const parsedMessage = linkify(parseTwitchEmotes(data.message, data.tags.emotes));
             
             // rawUsername is already declared above
             const twitchMessage = `<div class="twitch-message twitch-user-${data.tags['user-id']} twitch-username-${rawUsername.toLowerCase()}" id="twitch-msg-${data.tags.id}">
@@ -1059,6 +1059,14 @@ function connect() {
 // Prevent Cross site scripting (XSS)
 function sanitize(text) {
     return text.replace(/</g, '&lt;')
+}
+
+// Convert URLs in chat into clickable links
+function linkify(text) {
+    const urlRegex = /(https?:\/\/[^\s]+)(?![^<]*>)/gi;
+    return text.replace(urlRegex, function(url) {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #58a6ff; text-decoration: underline;">${url}</a>`;
+    });
 }
 
 function updateRoomStats() {
@@ -1983,7 +1991,8 @@ function renderKickMessage(content, emotes) {
         const regex = new RegExp(`(?![^<]*>)\\b${sanitize(code)}\\b`, 'gi');
         rendered = rendered.replace(regex, emoteTag);
     });
-    return rendered;
+    
+    return linkify(rendered);
 }
 
 // Live status dot helpers
