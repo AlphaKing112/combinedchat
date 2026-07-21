@@ -1140,10 +1140,9 @@ function toggleTwitchPlayer() {
                 channel: currentTwitchChannelName,
                 parent: [window.location.hostname, "localhost"],
                 autoplay: true,
-                muted: false
+                muted: true
             };
             twitchPlayer = new Twitch.Player("twitchPlayerContainer", options);
-            twitchPlayer.setVolume(0.5);
         }
     } else {
         $('#twitchPlayerContainer').hide();
@@ -1167,7 +1166,7 @@ function toggleKickPlayer() {
         $('#kickPlayerButton').css('color', 'white');
         
         if (currentKickChannel) {
-            $('#kickPlayerContainer').html(`<iframe id="kickPlayerIframe" src="https://player.kick.com/${currentKickChannel}?autoplay=true" allow="autoplay; fullscreen" style="border:none; transform-origin: top left;" frameborder="0" scrolling="no" allowfullscreen="true"></iframe>`);
+            $('#kickPlayerContainer').html(`<iframe id="kickPlayerIframe" src="https://player.kick.com/${currentKickChannel}?autoplay=true&muted=true" allow="autoplay; fullscreen" style="border:none; transform-origin: top left;" frameborder="0" scrolling="no" allowfullscreen="true"></iframe>`);
             resizeKickPlayer();
         }
     } else {
