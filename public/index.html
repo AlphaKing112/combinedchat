@@ -317,7 +317,7 @@
             <td>
                 <div id="mainChatContainer" style="position: relative; height: 60vh; min-height: 200px; display: flex; flex-direction: column; background: #23243a; border-radius: 12px; box-shadow: 0 2px 16px #0006; margin: 0 0 16px 0; overflow: hidden;">
                     <!-- Custom Top Resize Handle -->
-                    <div id="chatResizeHandle" style="height: 12px; cursor: ns-resize; background: #1a1a1a; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid #333; user-select: none;">
+                    <div id="chatResizeHandle" style="height: 12px; cursor: ns-resize; background: #1a1a1a; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid #333; user-select: none; touch-action: none;">
                         <div style="width: 40px; height: 4px; background: #555; border-radius: 2px;"></div>
                     </div>
                     <h3 class="containerheader" style="background: #1a1a1a; margin: 0; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
@@ -371,33 +371,45 @@
         let startY;
         let startHeight;
 
-        handle.addEventListener('mousedown', function(e) {
-            isResizing = true;
-            startY = e.clientY;
-            startHeight = container.getBoundingClientRect().height;
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-            // Prevent text selection during drag
-            e.preventDefault();
-        });
+        handle.addEventListener('mousedown', startResize);
+        handle.addEventListener('touchstart', startResize, { passive: false });
 
-        function handleMouseMove(e) {
-            if (!isResizing) return;
-            // Calculate distance moved. 
-            // If dragging UP (e.clientY < startY), delta is positive, so height increases!
-            const deltaY = startY - e.clientY;
-            const newHeight = startHeight + deltaY;
+        function startResize(e) {
+            isResizing = true;
+            startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            startHeight = container.getBoundingClientRect().height;
             
-            // Ensure minimum height
-            if (newHeight > 200) {
-                container.style.height = newHeight + 'px';
+            if (e.type.includes('touch')) {
+                document.addEventListener('touchmove', handleMove, { passive: false });
+                document.addEventListener('touchend', stopResize);
+            } else {
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('mouseup', stopResize);
+                e.preventDefault();
             }
         }
 
-        function handleMouseUp() {
+        function handleMove(e) {
+            if (!isResizing) return;
+            const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            const deltaY = startY - currentY;
+            const newHeight = startHeight + deltaY;
+            
+            if (newHeight > 200) {
+                container.style.height = newHeight + 'px';
+            }
+            
+            if (e.type.includes('touch') && e.cancelable) {
+                e.preventDefault(); // Prevent mobile scrolling while resizing
+            }
+        }
+
+        function stopResize() {
             isResizing = false;
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+            document.removeEventListener('mousemove', handleMove);
+            document.removeEventListener('mouseup', stopResize);
+            document.removeEventListener('touchmove', handleMove);
+            document.removeEventListener('touchend', stopResize);
         }
     });
 
