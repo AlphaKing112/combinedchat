@@ -6,6 +6,8 @@ process.env.PUPPETEER_ARGS = '--no-sandbox --disable-setuid-sandbox --disable-de
 
 const express = require('express');
 const { createServer } = require('http');
+const fs = require('fs');
+const path = require('path');
 // === Twitch Avatar Fetching ===
 const twitchAvatarCache = {};
 async function fetchTwitchAvatar(username) {
@@ -794,6 +796,158 @@ app.post('/api/twitch/chat', async (req, res) => {
     }
 });
 
+// TWITCH PINS ENDPOINT
+app.get('/api/twitch/pins/:broadcasterId', async (req, res) => {
+    const { broadcasterId } = req.params;
+    
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
+    }
+
+    try {
+        if (!global.twitchModeratorId) {
+            const userRes = await axios.get('https://api.twitch.tv/helix/users', {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+                }
+            });
+            if (userRes.data && userRes.data.data && userRes.data.data.length > 0) {
+                global.twitchModeratorId = userRes.data.data[0].id;
+            } else {
+                throw new Error("Could not fetch user ID from access token.");
+            }
+        }
+
+        const modId = global.twitchModeratorId;
+
+        const response = await axios.get(`https://api.twitch.tv/helix/chat/pins?broadcaster_id=${broadcasterId}&moderator_id=${modId}`, {
+            headers: {
+                'Client-ID': process.env.TWITCH_CLIENT_ID,
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+            }
+        });
+        
+        return res.json({ data: response.data.data });
+    } catch (error) {
+        console.error('[Twitch] Get Pins Error:', error.response?.data || error.message);
+        // Ignore 404/400 errors if pins aren't supported or empty
+        return res.status(200).json({ data: [] }); 
+    }
+});
+
+app.post('/api/twitch/pins', async (req, res) => {
+    const { broadcasterId, messageId, action } = req.body;
+    
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
+    }
+
+    if (!messageId) {
+        return res.status(400).json({ error: 'messageId is required to pin or unpin' });
+    }
+
+    try {
+        if (!global.twitchModeratorId) {
+            const userRes = await axios.get('https://api.twitch.tv/helix/users', {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+                }
+            });
+            if (userRes.data && userRes.data.data && userRes.data.data.length > 0) {
+                global.twitchModeratorId = userRes.data.data[0].id;
+            } else {
+                throw new Error("Could not fetch user ID from access token.");
+            }
+        }
+
+        const modId = global.twitchModeratorId;
+        
+        if (action === 'pin') {
+            // Pin message
+            await axios.put(`https://api.twitch.tv/helix/chat/pins?broadcaster_id=${broadcasterId}&moderator_id=${modId}&message_id=${messageId}`, {}, {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+                }
+            });
+        } else if (action === 'unpin') {
+            // Unpin message
+            await axios.delete(`https://api.twitch.tv/helix/chat/pins?broadcaster_id=${broadcasterId}&moderator_id=${modId}&message_id=${messageId}`, {
+                headers: {
+                    'Client-ID': process.env.TWITCH_CLIENT_ID,
+                    'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
+                }
+            });
+        } else {
+            return res.status(400).json({ error: 'Invalid action. Must be "pin" or "unpin".' });
+        }
+
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('[Twitch] Post/Delete Pins Error:', error.response?.data || error.message);
+        return res.status(500).json({ error: error.response?.data?.message || error.message });
+    }
+});
+
+app.get('/api/twitch/auth/url', (req, res) => {
+    if (!process.env.TWITCH_CLIENT_ID) {
+        return res.status(400).json({ error: 'TWITCH_CLIENT_ID not configured in .env' });
+    }
+    const scopes = 'moderator:manage:chat_messages user:bot channel:bot user:read:email chat:read chat:edit user:write:chat channel:moderate moderation:read channel:manage:moderators moderator:read:chatters channel:manage:broadcast user:edit:broadcast moderator:read:followers';
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers.host;
+    const redirectUri = `${protocol}://${host}/twitch-callback.html`;
+    const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${process.env.TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scopes)}`;
+    res.json({ url: authUrl });
+});
+
+app.get('/api/twitch/auth/status', async (req, res) => {
+    const hasToken = !!process.env.TWITCH_ACCESS_TOKEN;
+    if (!hasToken) return res.json({ authorized: false });
+    
+    try {
+        const axios = require('axios');
+        const response = await axios.get('https://api.twitch.tv/helix/users', {
+            headers: {
+                'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+                'Client-Id': process.env.TWITCH_CLIENT_ID
+            }
+        });
+        res.json({ authorized: true, username: response.data.data[0].login });
+    } catch (e) {
+        res.json({ authorized: false });
+    }
+});
+
+app.post('/api/twitch/auth', (req, res) => {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    // Update process.env
+    process.env.TWITCH_ACCESS_TOKEN = token;
+    
+    // Update .env file
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        let envContent = fs.readFileSync(envPath, 'utf8');
+        if (envContent.includes('TWITCH_ACCESS_TOKEN=')) {
+            envContent = envContent.replace(/TWITCH_ACCESS_TOKEN=.*/g, `TWITCH_ACCESS_TOKEN=${token}`);
+        } else {
+            envContent += `\nTWITCH_ACCESS_TOKEN=${token}`;
+        }
+        fs.writeFileSync(envPath, envContent);
+    } else {
+        fs.writeFileSync(envPath, `TWITCH_ACCESS_TOKEN=${token}`);
+    }
+
+    // Reset the cached moderator ID so it is re-fetched with the new token
+    global.twitchModeratorId = null;
+
+    res.json({ success: true });
+});
+
 // TWITCH EMOTES ENDPOINT
 // TWITCH BADGES ENDPOINT
 app.get('/api/twitch/badges/:broadcasterId', async (req, res) => {
@@ -1023,6 +1177,46 @@ app.get('/api/twitch/ads', async (req, res) => {
 });
 
 // TWITCH CHANNEL ACTIONS ENDPOINTS
+app.get('/api/twitch/userinfo', async (req, res) => {
+    const { broadcasterId, userId, broadcasterLogin, userLogin } = req.query;
+    if (!broadcasterId || !userId || !process.env.TWITCH_ACCESS_TOKEN) return res.json({ error: true });
+
+    try {
+        const axios = require('axios');
+        const headers = {
+            'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`,
+            'Client-Id': process.env.TWITCH_CLIENT_ID
+        };
+
+        // Run both requests concurrently to cut loading time in half!
+        const profilePromise = axios.get(`https://api.twitch.tv/helix/users?id=${userId}`, { headers })
+            .then(res => res.data?.data?.[0]?.profile_image_url || null)
+            .catch(() => null);
+
+        const followPromise = axios.get(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${broadcasterId}&user_id=${userId}`, { headers })
+            .then(res => res.data?.data?.[0]?.followed_at || null)
+            .catch(async (e) => {
+                // If official API fails (e.g. 403 Forbidden because you aren't a mod), fallback to IVR
+                if (broadcasterLogin && userLogin) {
+                    try {
+                        const ivrRes = await axios.get(`https://api.ivr.fi/v2/twitch/subage/${userLogin}/${broadcasterLogin}`);
+                        return ivrRes.data?.followedAt || null;
+                    } catch (ivrErr) {
+                        return null;
+                    }
+                }
+                return null;
+            });
+
+        const [profilePic, followDate] = await Promise.all([profilePromise, followPromise]);
+
+        res.json({ profilePic, followDate });
+    } catch (err) {
+        console.error('[Twitch] Userinfo error:', err.message);
+        res.status(500).json({ error: true, message: err.message });
+    }
+});
+
 app.get('/api/twitch/banned', async (req, res) => {
     const { broadcasterId } = req.query;
     if (!broadcasterId || !process.env.TWITCH_ACCESS_TOKEN) return res.json({ error: true });
@@ -1036,7 +1230,8 @@ app.get('/api/twitch/banned', async (req, res) => {
         });
         res.json(response.data);
     } catch (err) {
-        res.status(500).json({ error: true, message: err.message });
+        console.error('[Twitch] Banned Fetch Error:', err.response?.data || err.message);
+        res.status(500).json({ error: true, message: err.response?.data?.message || err.message });
     }
 });
 

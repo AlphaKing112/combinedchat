@@ -1,274 +1,71 @@
-# Tiktok/Kick Chat Reader
+# Multi-Platform Chat Reader & OBS Overlay
 
-A real-time chat reader for TikTok and Kick livestreams. This project lets you view and merge chat messages from both platforms, with stats and a modern, mobile-friendly UI. Perfect for streamers, moderators, and viewers who want to monitor multiple chat platforms simultaneously.
+A powerful, unified chat reader for **Twitch, TikTok, and Kick** built specifically for streamers. It combines all chats into a single, beautiful web interface and provides a customizable transparent overlay for OBS Studio.
 
-## Screenshot
+It features built-in Twitch moderation tools (pinning messages, timeout/ban, deleting messages, checking banned lists, and creating clips), all powered by Twitch's modern OAuth Implicit Grant flow so you never have to manually generate and paste access tokens.
 
-![Screenshot of Tiktok/Kick Chat Reader](https://i.imgur.com/QFqfrLN.png)
+## 🚀 Features
+- **Unified Chat:** Read Twitch, TikTok, and Kick chats all in one place.
+- **OBS Overlay:** A transparent `/obs.html` page that natively integrates into your OBS scenes with slick animations.
+- **Twitch Moderation:** Native UI for pinning messages (mimicking Twitch's exact UI), deleting messages, timing out/banning users, and clipping.
+- **Easy Authentication:** 1-click Twitch Authorization popup to securely grant your own app permissions on the fly.
+- **Dynamic Emotes & Badges:** Automatically fetches your channel's custom emotes and Twitch global badges.
 
-## 🌟 Key Features
+---
 
-- **Multi-Platform Chat**: Merge TikTok, Kick, and Twitch chat in one interface
-- **Twitch Moderation**: Built-in context menu for Timeout, Ban, and Delete, VIPs, Warnings, and Emote Picker
-- **Mobile-Friendly**: Responsive design that works perfectly on phones and tablets
-- **OBS Integration**: Generate overlay URLs for streaming software
-- **External Access**: Use No-IP to access from anywhere in the world
-- **Real-Time Stats**: Live follower counts, viewer counts, likes, and diamonds
-- **Smart Scrolling**: Mobile-optimized chat scrolling with scroll-to-bottom button
-- **User Join Notifications**: See when users join TikTok chatrooms
-- **Emote Support**: Full Kick emote rendering and TikTok badge support
+## 🛠️ Setup Instructions (Local / Desktop)
 
-## Credits & Open Source Projects Used
+### 1. Prerequisites
+- Download and install [Node.js](https://nodejs.org/) (v16 or higher).
+- A Twitch account.
 
-- [zerodytrash/TikTok-Chat-Reader](https://github.com/zerodytrash/TikTok-Chat-Reader) — TikTok chat backend and frontend inspiration
-- [KickEngineering/KickDevDocs](https://github.com/KickEngineering/KickDevDocs) — Official Kick API documentation
-- [@retconned/kick-js](https://github.com/retconned/kick-js) — Node.js library for Kick chat integration
-- [Twitch API](https://dev.twitch.tv/docs/api/) — Official Twitch API documentation
-- [tmi.js](https://tmijs.com/) — Twitch chat library
-- [Socket.IO](https://socket.io/) — Real-time communication
-- [Express](https://expressjs.com/) — Backend server
-- [Axios](https://axios-http.com/) — HTTP requests
-- [jQuery](https://jquery.com/) — Frontend DOM manipulation
+### 2. Create a Twitch Developer Application
+To interact with Twitch Chat and moderation, you need your own Twitch Client ID.
+1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console/apps) and log in.
+2. Click **Register Your Application** (or **Add New App**).
+3. Set the **Name** to whatever you want (e.g., "My Chat Reader").
+4. **Important:** Add the following **OAuth Redirect URL**:
+   - `http://localhost:8081/twitch-callback.html`
+5. Set the **Category** to `Chat Bot` or `Broadcaster Utility`.
+6. Click **Create**, then click **Manage** on your new app to copy your **Client ID**.
 
-## 📱 Mobile Usage
+### 3. Install and Configure
+1. Download or clone this repository to your computer.
+2. Open a terminal (Command Prompt / PowerShell) in the folder.
+3. Run `npm install` to install all required dependencies.
+4. Create a new file named `.env` in the root folder.
+5. Paste your Twitch Client ID into the `.env` file like this:
+   ```env
+   TWITCH_CLIENT_ID=your_client_id_here
+   ```
 
-### **Using on Your Phone**
+### 4. Run the App
+1. In your terminal, run `npm run dev` (or `node server.js`).
+2. Open your web browser and go to: `http://localhost:8081`
+3. Enter your Twitch channel name and click **Connect**.
+4. The first time you connect, a **"Authorize Twitch 🔑"** button will appear. Click it, log into Twitch, and authorize your app. 
+   *(This securely generates a token and saves it behind the scenes so you can moderate and chat!)*
 
-1. **Local Network Access**:
-   - Make sure your phone and computer are on the same WiFi network
-   - Find your computer's IP address (usually `192.168.1.x` or `10.0.0.x`)
-   - On your phone, visit: `http://[YOUR_COMPUTER_IP]:8081`
-   - Example: `http://192.168.1.100:8081`
+### 5. OBS Setup
+1. In OBS Studio, add a new **Browser Source**.
+2. Set the URL to: `http://localhost:8081/obs.html`
+3. Check the box that says **"Refresh browser when scene becomes active"**.
+4. The chat overlay will now appear seamlessly on your stream!
 
-2. **External Access (No-IP)**:
-   - Follow the No-IP setup instructions below
-   - Access from anywhere using your No-IP domain
-   - Perfect for monitoring chat while away from home
+---
 
-### **Mobile Features**
-- ✅ **Touch-friendly interface** with large buttons
-- ✅ **Smart chat scrolling** - scroll up to read old messages without interruption
-- ✅ **Scroll-to-bottom button** (↓) appears when you scroll up
-- ✅ **Responsive design** adapts to any screen size
-- ✅ **Fast loading** optimized for mobile networks
+## ☁️ Deploying to Render (Optional)
 
-## 🎥 OBS Integration
+If you want to host this on the cloud so you don't have to run it on your PC:
+1. Push this project to your GitHub.
+2. Go to [Render](https://render.com/) and create a new **Web Service**.
+3. Connect your GitHub repository.
+4. Set the **Start Command** to: `node server.js`
+5. Under **Environment Variables**, add:
+   - Key: `TWITCH_CLIENT_ID`
+   - Value: `your_client_id_here`
+6. Go back to your Twitch Developer Console and add a second **OAuth Redirect URL** matching your Render domain:
+   - `https://your-app-name.onrender.com/twitch-callback.html`
+7. Deploy! Your app will automatically detect it's on Render and use the correct callback.
 
-### **Adding Chat to Your Stream**
-
-1. **Generate Overlay URL**:
-   - Enter TikTok username, Kick channel name, and/or Twitch channel name
-   - Click "Generate Overlay URL"
-   - Copy the generated URL
-
-2. **Add to OBS**:
-   - In OBS, add a new "Browser Source"
-   - Paste the overlay URL
-   - Set width and height (recommended: 400x600)
-   - Check "Refresh browser when scene becomes active"
-
-3. **Customize Overlay**:
-   - The overlay URL includes parameters for customization:
-   - `bgColor`: Background color (default: rgb(24,23,28))
-   - `fontColor`: Text color (default: rgb(227,229,235))
-   - `fontSize`: Font size (default: 1.3em)
-   - `showLikes=1`: Show like notifications
-   - `showGifts=1`: Show gift notifications
-   - `showFollows=1`: Show follow notifications
-   - `showJoins=1`: Show user join notifications
-
-### **Example Overlay URL**:
-```
-http://yourdomain.com/obs.html?username=someuser&kick=somechannel&twitch=somechannel&showLikes=1&showGifts=1&bgColor=rgb(0,0,0)&fontColor=rgb(255,255,255)&fontSize=1.2em
-```
-
-## 🌐 External Access with No-IP
-
-### **What is No-IP?**
-No-IP provides free dynamic DNS that gives you a permanent domain name for your home server, even if your IP address changes.
-
-### **Setup Instructions**
-
-1. **Create No-IP Account**:
-   - Go to [noip.com](https://www.noip.com) and create a free account
-   - Choose a hostname (e.g., `yourname.ddns.net`)
-
-2. **Configure Router Port Forwarding**:
-   - Log into your router admin panel (usually `192.168.1.1` or `192.168.0.1`)
-   - Go to "Port Forwarding" or "Virtual Server"
-   - Add new rule:
-     - **External Port**: 80 (or 8081)
-     - **Internal Port**: 8081
-     - **Internal IP**: Your computer's local IP
-     - **Protocol**: TCP
-
-3. **Access from Anywhere**:
-   - Your chat reader will be available at: `http://yourname.ddns.net:8081`
-   - Works from any device, anywhere in the world
-   - Perfect for monitoring chat while traveling
-
-### **Alternative: Quick Testing with ngrok**
-For temporary external access:
-```bash
-npm install -g ngrok
-node server.js
-# In another terminal:
-ngrok http 8081
-```
-
-## 🚀 Setup & Installation
-
-### **Quick Start**
-
-1. **Clone the repository**:
-```bash
-git clone <your-repo-url>
-cd <your-repo-directory>
-```
-
-2. **Install dependencies**:
-```bash
-npm install
-```
-
-3. **Set up Twitch Configuration**:
-Rename `.env.example` to `.env` (or create a new `.env` file) and fill in your Twitch API credentials:
-```env
-TWITCH_CLIENT_ID=your_client_id_here
-TWITCH_ACCESS_TOKEN=your_access_token_here
-```
-> **Note**: For Twitch moderation and clip features to work, your access token must include the following scopes:
-> `moderator:manage:banned_users`, `moderator:manage:chat_messages`, `channel:manage:vips`, `moderator:manage:shoutouts`, `moderator:manage:warnings`, `user:write:chat`, `clips:edit`
-
-4. **Run the server**:
-```bash
-npm start
-# or node server.js
-```
-
-5. **Access the application**:
-- **Local**: [http://localhost:8081](http://localhost:8081)
-- **Network**: `http://[YOUR_IP]:8081`
-- **External**: `http://yourname.ddns.net:8081` (after No-IP setup)
-
-### **Deploying to Render (Cloud Hosting)**
-
-To host this application 24/7 on the internet for free using Render:
-1. Push this project repository to GitHub.
-2. Go to [Render.com](https://render.com) and create an account.
-3. Click **New +** and select **Web Service**.
-4. Connect your GitHub account and select this repository.
-5. Configure the web service:
-   - **Build Command**: `npm install`
-   - **Start Command**: `node server.js`
-6. Scroll down to **Environment Variables** and add your Twitch credentials:
-   - Key: `TWITCH_CLIENT_ID` | Value: `your_client_id`
-   - Key: `TWITCH_ACCESS_TOKEN` | Value: `your_access_token`
-7. Click **Create Web Service**. Render will automatically build and host your chat reader on a public URL!
-
-## 📖 Usage Guide
-
-### **Basic Usage**
-
-1. **TikTok Chat**:
-   - Enter a TikTok username (e.g., `@username`)
-   - Click "Connect" to view TikTok chat and stats
-   - See real-time messages, likes, gifts, and user joins
-
-2. **Kick Chat**:
-   - Enter a Kick channel name (e.g., `somechannel`)
-   - Click "Connect" to view Kick chat and stats
-   - See real-time messages, emotes, and stream information
-
-3. **Twitch Chat & Moderation**:
-   - Enter a Twitch channel name
-   - Click "Connect" to view Twitch chat and stats
-   - Click the Emote button (😀) to pick from custom channel and global emotes
-   - Click any Twitch username to open the Moderation Menu (Timeout, Ban, Delete Message, VIP, Warning, Shoutout)
-
-4. **Multi-Platform**:
-   - Connect to TikTok, Kick, and Twitch simultaneously
-   - Chat messages are color-coded and marked with platform icons
-   - Stats are displayed for all platforms
-
-### **Advanced Features**
-
-- **Mobile Scrolling**: Scroll up to read old messages without interruption
-- **Stats Display**: Real-time follower counts, viewer counts, likes, and diamonds
-- **Stream Duration**: Live stream duration counter for Kick streams
-- **User Joins**: See when users join TikTok chatrooms
-- **Emote Support**: Full Kick emote rendering and TikTok badges
-- **Auto-Refresh**: Stats update every 3 seconds automatically
-
-### **Switching Streamers**
-- When you connect to a new streamer, chat and stats update automatically
-- Previous chat history is cleared for the new stream
-- Live status dots show real-time online/offline status
-
-## 🔧 How it Works
-
-### **Backend Architecture**
-- **TikTok Integration**: Uses `tiktok-live-connector` to connect to TikTok LIVE streams
-- **Kick Integration**: Uses WebSocket connections to Kick's Pusher service for real-time chat
-- **Socket.IO**: Real-time communication between backend and frontend
-- **Express Server**: Handles HTTP requests and serves the web interface
-
-### **Frontend Features**
-- **Responsive Design**: Mobile-first approach with touch-friendly interface
-- **Smart Scrolling**: Prevents auto-scroll interruption when reading old messages
-- **Real-Time Updates**: Live chat messages, stats, and stream information
-- **Cross-Platform**: Works on desktop, mobile, and tablet devices
-
-### **Data Flow**
-1. Backend connects to TikTok and Kick APIs
-2. Chat messages and stats are received in real-time
-3. Data is processed and sent to frontend via Socket.IO
-4. Frontend displays merged chat with color coding and stats
-5. Mobile-optimized scrolling provides smooth user experience
-
-## 🛠️ Troubleshooting
-
-### **Common Issues**
-
-1. **Can't connect to TikTok**:
-   - Make sure the username is correct and the user is currently live
-   - TikTok may block connections if too many requests are made
-   - Try refreshing the page and reconnecting
-
-2. **Can't connect to Kick**:
-   - Verify the channel name is correct
-   - Check if the channel is currently live
-   - Kick's API may have rate limiting
-
-3. **Mobile scrolling issues**:
-   - Use the scroll-to-bottom button (↓) to return to latest messages
-   - The chat will stop auto-scrolling when you scroll up
-   - Wait 1.5 seconds after stopping scroll for auto-scroll to resume
-
-4. **No-IP not working**:
-   - Check if port forwarding is configured correctly
-   - Verify the No-IP DUC client is running and updated
-   - Test with `ngrok` first to ensure the application works externally
-
-### **Performance Tips**
-- Close unnecessary browser tabs to improve performance
-- Use a wired internet connection for better stability
-- Restart the server if connections become unstable
-
-## 🤝 Contributing
-
-Pull requests and issues are welcome! Please:
-- Credit all upstream projects and contributors
-- Follow best practices for Node.js and frontend code
-- Open an issue for bugs or feature requests
-- Test on both desktop and mobile devices
-
-## 📚 Documentation & References
-- [TikTok-Chat-Reader](https://github.com/zerodytrash/TikTok-Chat-Reader) - Original TikTok integration
-- [Kick Dev Docs](https://github.com/KickEngineering/KickDevDocs) - Official Kick API documentation
-- [@retconned/kick-js](https://github.com/retconned/kick-js) - Kick JavaScript library
-- [No-IP Setup Guide](https://www.noip.com/support/knowledgebase/getting-started-with-no-ip-com/) - Dynamic DNS setup
-- [OBS Browser Source](https://obsproject.com/wiki/Sources-Guide#browser-source) - OBS integration guide
-
-## 📄 License
-This project is open source and provided under the MIT License. See LICENSE for details.
+*(Note: Because Render's free tier sleeps and wipes temporary files, you will need to click "Authorize Twitch" whenever the app wakes up from sleep to restore your moderation token).*

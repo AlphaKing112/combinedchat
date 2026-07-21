@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Authorization</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        h2 {
+            margin-top: 0;
+            color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 id="status">Authorizing...</h2>
+        <p id="details">Please wait while we securely save your token.</p>
+    </div>
+
+    <script>
+        // The token is returned in the URL hash, e.g., #access_token=xyz&scope=...
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+
+        if (accessToken) {
+            // Send to our backend to store in .env
+            fetch('/api/twitch/auth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token: accessToken })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('status').innerText = 'Success!';
+                    document.getElementById('status').style.color = '#4CAF50';
+                    document.getElementById('details').innerText = 'You can safely close this window.';
+                    // Update parent window if it exists
+                    if (window.opener && window.opener.checkTwitchAuthStatus) {
+                        window.opener.checkTwitchAuthStatus();
+                    }
+                    // Automatically close the popup after a moment
+                    setTimeout(() => window.close(), 1500);
+                } else {
+                    document.getElementById('status').innerText = 'Error';
+                    document.getElementById('status').style.color = '#F44336';
+                    document.getElementById('details').innerText = data.error || 'Failed to save token.';
+                }
+            })
+            .catch(err => {
+                document.getElementById('status').innerText = 'Error';
+                document.getElementById('status').style.color = '#F44336';
+                document.getElementById('details').innerText = 'Network error saving token.';
+            });
+        } else {
+            document.getElementById('status').innerText = 'Authorization Failed';
+            document.getElementById('status').style.color = '#F44336';
+            document.getElementById('details').innerText = 'No access token was returned by Twitch. Please try again.';
+        }
+    </script>
+</body>
+</html>

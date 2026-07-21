@@ -683,22 +683,59 @@ $(document).ready(() => {
         });
         
         // TWITCH CHAT HANDLING
+        window.checkTwitchAuthStatus = function() {
+            fetch('/api/twitch/auth/status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.authorized) {
+                        window.authorizedTwitchUser = data.username;
+                        $('#twitchAuthButton').hide();
+                        // If we connected before auth, our roomId is null. Reconnect to fetch it properly!
+                        if (!window.currentTwitchRoomId && typeof currentTwitchChannelName !== 'undefined' && currentTwitchChannelName) {
+                            window.connection.socket.emit('setTwitchChannel', currentTwitchChannelName);
+                        }
+                    } else {
+                        $('#twitchAuthButton').show();
+                    }
+                })
+                .catch(err => console.error('Failed to check auth status', err));
+        };
+
         window.connection.socket.on('twitchConnected', function(data) {
-            console.log('[Twitch] Connected:', data);
-            setLiveDot('twitchDot', true);
+            console.log('[Twitch] Connected to', data.channelName);
+            window.currentTwitchRoomId = data.roomId;
+            currentTwitchChannelName = data.channelName;
+            $('#stateText').text('Connected to Twitch!');
             $('#twitchConnectButton').val('disconnect');
-            $('#stateText').text(`Connected to Twitch: ${data.channelName}`);
-            $('#chatInputContainer').css('display', 'flex');
-            $('#twitchClipButton').show();
             $('#twitchPlayerButton').show();
+            $('#twitchClipButton').show();
             
-            if (data.channelName) {
-                currentTwitchChannelName = data.channelName;
-            }
+            // Check auth status and show button if not authorized
+            window.checkTwitchAuthStatus();
+            
+            twitchChatReady = true;
+            
+            // Show the chat input container when connected
+            $('#chatInputContainer').css('display', 'flex');
+            
+            // Update live dot to online when connected
+            setLiveDot('twitchDot', true);
+            
+            // Load emotes for the channel
+            if (typeof loadEmotes === 'function') loadEmotes(data.roomId);
+            
+            // Fetch badges
             if (data.roomId) {
-                window.currentTwitchRoomId = data.roomId;
                 fetchTwitchBadges(data.roomId);
             }
+            
+            // Start polling for native Twitch pinned message
+            if (window.twitchPinnedInterval) clearInterval(window.twitchPinnedInterval);
+            window.twitchPinnedInterval = setInterval(() => checkTwitchPinnedMessage(data.roomId), 5000);
+            checkTwitchPinnedMessage(data.roomId);
+            
+            // Start ad tracking
+            if (typeof startTwitchAdTracking === 'function') startTwitchAdTracking(data.channelName);
         });
         
         window.fetchTwitchBadges = function(roomId) {
@@ -718,14 +755,28 @@ $(document).ready(() => {
 
         window.connection.socket.on('twitchDisconnected', function(reason) {
             console.log('[Twitch] Disconnected:', reason);
+            window.twitchBadgesCache = null;
             setLiveDot('twitchDot', false);
             $('#twitchConnectButton').val('connect');
             $('#chatInputContainer').hide();
             $('#twitchClipButton').hide();
             $('#twitchPlayerButton').hide();
+            $('#twitchAuthButton').hide();
             if (typeof toggleTwitchPlayer === 'function' && isTwitchPlayerShowing) {
                 toggleTwitchPlayer();
             }
+            
+            // Clean up pinned message UI
+            if (window.twitchPinnedInterval) {
+                clearInterval(window.twitchPinnedInterval);
+                window.twitchPinnedInterval = null;
+            }
+            currentPinnedMessageId = null;
+            locallyHiddenPinnedMessageId = null;
+            $('#showPinnedBtn').hide();
+            $('#pinnedMessageContainer').hide();
+            $('#pinnedMessageContent').empty();
+            
             currentTwitchChannelName = null;
             window.currentTwitchRoomId = null;
         });
@@ -733,19 +784,19 @@ $(document).ready(() => {
         window.connection.socket.on('twitchMessageDeleted', function(data) {
             console.log('[Twitch] Message Deleted:', data);
             $(`#twitch-msg-${data.messageId} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
-            if (typeof showNotification === 'function') showNotification('Message deleted', 'info');
+            if (typeof showNotification === 'function') showNotification(`Message deleted from ${data.username}`, 'info');
         });
 
         window.connection.socket.on('twitchTimeout', function(data) {
             console.log('[Twitch] User Timeout:', data);
             $(`.twitch-username-${data.username.toLowerCase()} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
-            if (typeof showNotification === 'function') showNotification(`User timed out for ${data.duration}s`, 'warning');
+            if (typeof showNotification === 'function') showNotification(`${data.username} timed out for ${data.duration}s`, 'warning');
         });
 
         window.connection.socket.on('twitchBan', function(data) {
             console.log('[Twitch] User Banned:', data);
             $(`.twitch-username-${data.username.toLowerCase()} span`).css({'text-decoration': 'line-through', 'opacity': '0.5'});
-            if (typeof showNotification === 'function') showNotification(`User banned`, 'error');
+            if (typeof showNotification === 'function') showNotification(`${data.username} was banned`, 'error');
         });
 
         window.connection.socket.on('twitchClearChat', function() {
@@ -814,20 +865,38 @@ $(document).ready(() => {
         function getTwitchBadgeUrl(setId, versionId) {
             if (!window.twitchBadgesCache) return null;
             
-            if (window.twitchBadgesCache.channel) {
-                const set = window.twitchBadgesCache.channel.find(s => s.set_id === setId);
-                if (set) {
-                    const version = set.versions.find(v => v.id === versionId);
-                    if (version) return version.image_url_1x;
+            function findVersionInSet(set) {
+                if (!set) return null;
+                let version = set.versions.find(v => v.id === versionId);
+                if (version) return version.image_url_1x;
+                
+                // Fallback for numeric badges (like subscriber months) where exact version doesn't exist
+                if (!isNaN(versionId)) {
+                    const reqNum = parseInt(versionId);
+                    const numericVersions = set.versions
+                        .map(v => ({ idStr: v.id, num: parseInt(v.id) }))
+                        .filter(v => !isNaN(v.num))
+                        .sort((a, b) => b.num - a.num); // sort descending
+                    
+                    const closest = numericVersions.find(v => v.num <= reqNum);
+                    if (closest) {
+                        const fallbackVersion = set.versions.find(v => v.id === closest.idStr);
+                        if (fallbackVersion) return fallbackVersion.image_url_1x;
+                    }
                 }
+                return null;
             }
             
-            if (window.twitchBadgesCache.global) {
-                const set = window.twitchBadgesCache.global.find(s => s.set_id === setId);
-                if (set) {
-                    const version = set.versions.find(v => v.id === versionId);
-                    if (version) return version.image_url_1x;
-                }
+            if (window.twitchBadgesCache.channelBadges) {
+                const set = window.twitchBadgesCache.channelBadges.find(s => s.set_id === setId);
+                const url = findVersionInSet(set);
+                if (url) return url;
+            }
+            
+            if (window.twitchBadgesCache.globalBadges) {
+                const set = window.twitchBadgesCache.globalBadges.find(s => s.set_id === setId);
+                const url = findVersionInSet(set);
+                if (url) return url;
             }
             return null;
         }
@@ -883,7 +952,7 @@ $(document).ready(() => {
             const twitchMessage = `<div class="twitch-message twitch-user-${data.tags['user-id']} twitch-username-${rawUsername.toLowerCase()}" id="twitch-msg-${data.tags.id}">
                 <svg class="platform-icon" style="width:20px;height:20px;vertical-align:middle;margin-right:4px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.8));" viewBox="0 0 512 512"><path fill="#9146FF" d="M391.2 103.5H352.5v109.7h38.6zM285 103H246.4V212.8H285zM120.8 0 24.3 91.4V420.6H140.1V512l96.5-91.4h77.3L487.7 256V0zM449.1 237.8l-77.2 73-15.1 14.3-30 14.3-58 14.3H236.6l-77.3 73.1v-73.1H91.9V36.6h357.2z"/></svg>
                 ${profilePicHtml}
-                ${badgeHtml}<b style="color: ${color}; cursor: pointer;" onclick="showTwitchContextMenu(event, '${data.tags['user-id']}', '${data.tags['room-id']}', '${data.tags.id}', '${safeDisplayName}', ${!!(data.tags.badges && data.tags.badges.vip)})">${sanitize(displayName)}:</b>
+                ${badgeHtml}<b style="color: ${color}; cursor: pointer;" onclick="showTwitchContextMenu(event, '${data.tags['user-id']}', '${data.tags['room-id']}', '${data.tags.id}', '${safeDisplayName}', ${!!(data.tags.badges && data.tags.badges.vip)}, '${(data.tags['badge-info'] && data.tags['badge-info'].subscriber) ? data.tags['badge-info'].subscriber : ''}', '${data.profilePic || ''}')">${sanitize(displayName)}:</b>
                 <span>${parsedMessage}</span>
             </div>`;
             
@@ -1069,7 +1138,9 @@ function toggleTwitchPlayer() {
                 width: "100%",
                 height: "100%",
                 channel: currentTwitchChannelName,
-                parent: [window.location.hostname, "localhost"]
+                parent: [window.location.hostname, "localhost"],
+                autoplay: true,
+                muted: false
             };
             twitchPlayer = new Twitch.Player("twitchPlayerContainer", options);
             twitchPlayer.setVolume(0.5);
@@ -1096,7 +1167,7 @@ function toggleKickPlayer() {
         $('#kickPlayerButton').css('color', 'white');
         
         if (currentKickChannel) {
-            $('#kickPlayerContainer').html(`<iframe id="kickPlayerIframe" src="https://player.kick.com/${currentKickChannel}" style="border:none; transform-origin: top left;" frameborder="0" scrolling="no" allowfullscreen="true"></iframe>`);
+            $('#kickPlayerContainer').html(`<iframe id="kickPlayerIframe" src="https://player.kick.com/${currentKickChannel}?autoplay=true" allow="autoplay; fullscreen" style="border:none; transform-origin: top left;" frameborder="0" scrolling="no" allowfullscreen="true"></iframe>`);
             resizeKickPlayer();
         }
     } else {
@@ -2009,14 +2080,55 @@ $(document).ready(() => {
 // === TWITCH MODERATION CONTEXT MENU ===
 let currentTwitchContextMenuData = null;
 
-function showTwitchContextMenu(event, userId, roomId, messageId, username, isVip = false) {
+function showTwitchContextMenu(event, userId, roomId, messageId, username, isVip = false, subMonths = '', profilePic = '') {
     event.preventDefault();
     event.stopPropagation();
     
     currentTwitchContextMenuData = { userId, roomId, messageId, username };
     
     const menu = $('#twitchContextMenu');
-    $('#contextMenuHeader').text(username);
+    $('#contextMenuUsername').text(username);
+    $('#contextMenuAvatar').attr('src', profilePic || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/dbdc9198-def8-11e9-8681-784f43822e80-profile_image-300x300.png');
+    
+    $('#contextMenuFollowDate').text('🤍 Loading...');
+    if (subMonths) {
+        $('#contextMenuSubStatus').text(`⭐ Subbed for ${subMonths} Months`).show();
+    } else {
+        $('#contextMenuSubStatus').hide();
+    }
+    
+    // Cache user info to prevent loading delays on subsequent clicks
+    window.twitchUserInfoCache = window.twitchUserInfoCache || {};
+    const cacheKey = `${roomId}_${userId}`;
+    
+    function applyUserInfo(data) {
+        if (data.profilePic && !profilePic) {
+            $('#contextMenuAvatar').attr('src', data.profilePic);
+        }
+        if (data.followDate) {
+            const date = new Date(data.followDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+            $('#contextMenuFollowDate').text(`🤍 Following Since ${date}`);
+        } else {
+            $('#contextMenuFollowDate').text('🤍 Not Following');
+        }
+    }
+
+    if (window.twitchUserInfoCache[cacheKey]) {
+        applyUserInfo(window.twitchUserInfoCache[cacheKey]);
+    } else {
+        fetch(`/api/twitch/userinfo?broadcasterId=${roomId}&userId=${userId}&broadcasterLogin=${currentTwitchChannelName}&userLogin=${username}`)
+            .then(res => res.json())
+            .then(data => {
+                window.twitchUserInfoCache[cacheKey] = data;
+                // Only apply if the menu is still open for the same user
+                if (currentTwitchContextMenuData && currentTwitchContextMenuData.userId === userId) {
+                    applyUserInfo(data);
+                }
+            })
+            .catch(err => {
+                $('#contextMenuFollowDate').text('🤍 Follow Date Unavailable');
+            });
+    }
     
     $('#vipContextMenuItem').text(isVip ? 'Remove VIP' : 'Give VIP');
     $('#vipContextMenuItem').attr('onclick', isVip ? "moderateTwitch('unvip')" : "moderateTwitch('vip')");
@@ -2026,6 +2138,13 @@ function showTwitchContextMenu(event, userId, roomId, messageId, username, isVip
         left: event.pageX + 'px',
         display: 'block'
     });
+    
+    // Only show moderation options if the user is connected to their own authorized channel
+    if (window.authorizedTwitchUser && typeof currentTwitchChannelName === 'string' && window.authorizedTwitchUser.toLowerCase() === currentTwitchChannelName.toLowerCase()) {
+        $('.mod-only-item').show();
+    } else {
+        $('.mod-only-item').hide();
+    }
 }
 
 function moderateTwitch(action, duration = null) {
@@ -2085,6 +2204,145 @@ function moderateTwitch(action, duration = null) {
 $(document).click(function() {
     $('#twitchContextMenu').hide();
 });
+
+function pinCurrentMessage() {
+    if (!currentTwitchContextMenuData) return;
+    const { roomId, messageId } = currentTwitchContextMenuData;
+    
+    // Call our backend to natively pin the message on Twitch
+    fetch('/api/twitch/pins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            broadcasterId: roomId,
+            messageId: messageId,
+            action: 'pin'
+        })
+    }).then(res => res.json())
+      .then(data => {
+          if (data.error) showNotification('Failed to pin: ' + data.error, 'error');
+          else showNotification('Message pinned successfully!', 'success');
+      })
+      .catch(err => showNotification('Error pinning: ' + err.message, 'error'));
+      
+    $('#twitchContextMenu').hide();
+}
+
+function unpinMessage() {
+    if (!window.currentTwitchRoomId || !currentPinnedMessageId) return;
+    
+    // Call our backend to natively unpin the message on Twitch
+    fetch('/api/twitch/pins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            broadcasterId: window.currentTwitchRoomId,
+            messageId: currentPinnedMessageId,
+            action: 'unpin'
+        })
+    }).then(res => res.json())
+      .then(data => {
+          if (data.error) showNotification('Failed to unpin: ' + data.error, 'error');
+          else {
+              hidePinnedMessage(true); // pass true to indicate it was completely unpinned
+          }
+      })
+      .catch(err => showNotification('Error unpinning: ' + err.message, 'error'));
+}
+
+let locallyHiddenPinnedMessageId = null;
+
+function hidePinnedMessage(fullyUnpinned = false) {
+    if (!fullyUnpinned) {
+        locallyHiddenPinnedMessageId = currentPinnedMessageId;
+        $('#showPinnedBtn').fadeIn(200);
+    } else {
+        locallyHiddenPinnedMessageId = null;
+        $('#showPinnedBtn').fadeOut(200);
+    }
+    
+    $('#pinnedMessageContent').css('opacity', '0');
+    setTimeout(() => {
+        $('#pinnedMessageContainer').slideUp(300, function() {
+            if (fullyUnpinned) $('#pinnedMessageContent').empty();
+        });
+    }, 150);
+}
+
+function showPinnedMessage() {
+    locallyHiddenPinnedMessageId = null;
+    $('#showPinnedBtn').fadeOut(200);
+    $('#pinnedMessageContainer').slideDown(300, function() {
+        $('#pinnedMessageContent').css('opacity', '1');
+    });
+}
+
+// Polling for natively pinned messages
+let currentPinnedMessageId = null;
+
+function checkTwitchPinnedMessage(roomId) {
+    if (!roomId) return;
+    fetch(`/api/twitch/pins/${roomId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.data && data.data.length > 0) {
+                const pin = data.data[0];
+                if (pin.message_id !== currentPinnedMessageId) {
+                    currentPinnedMessageId = pin.message_id;
+                    locallyHiddenPinnedMessageId = null; // New pin! Automatically unhide
+                    $('#showPinnedBtn').hide();
+                    renderNativePinnedMessage(pin);
+                } else if (locallyHiddenPinnedMessageId === currentPinnedMessageId) {
+                    // It's still the same pin, but the user hid it locally. Keep it hidden.
+                    if (!$('#showPinnedBtn').is(':visible')) {
+                        $('#showPinnedBtn').show();
+                    }
+                }
+            } else {
+                if (currentPinnedMessageId !== null) {
+                    currentPinnedMessageId = null;
+                    hidePinnedMessage(true);
+                }
+            }
+        })
+        .catch(err => console.error('Failed to fetch pinned message:', err));
+}
+
+function sanitize(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function renderNativePinnedMessage(pin) {
+    const text = sanitize(pin.message?.text || '');
+    const pinner = sanitize(pin.pinned_by?.user_name || 'Moderator');
+    const sender = sanitize(pin.message?.user_name || pinner); // Sometime message sender isn't returned clearly, fallback to pinner or format properly if available
+    
+    // HTML mimicking native twitch layout
+    const html = `
+        <div style="font-size: 13px; margin-bottom: 2px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" style="fill: #e3e5eb; vertical-align: middle; margin-right: 2px;">
+                <path fill-rule="evenodd" d="M18 4V2H6v2h2v5a3 3 0 0 0-3 3v4h14v-4a3 3 0 0 0-3-3V4h2Zm-1 10H7v-2a1 1 0 0 1 1-1h2V4h4v7h2a1 1 0 0 1 1 1v2Z" clip-rule="evenodd"></path><path d="M13 18h-2v4h2v-4Z"></path>
+            </svg>
+            <span style="color: #aaa;">Pinned by </span>
+            <img src="https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/1" style="height:12px;vertical-align:middle;margin:0 2px;">
+            <span style="color: #e3e5eb;">${pinner}</span>
+        </div>
+        <div style="font-size: 14px; font-weight: bold; margin: 4px 0;">
+            ${text}
+        </div>
+    `;
+    
+    $('#pinnedMessageContent').css('opacity', '1').html(html);
+    if (!$('#pinnedMessageContainer').is(':visible')) {
+        $('#pinnedMessageContainer').slideDown(200);
+    }
+}
 
 function createTwitchClip() {
     if (!currentTwitchChannelName) {

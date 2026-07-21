@@ -261,8 +261,31 @@
         <input type="button" id="twitchConnectButton" value="connect">
         <input type="button" id="twitchPlayerButton" value="Watch Stream" onclick="toggleTwitchPlayer()" style="display: none; margin-left: 10px; background-color: #9146FF; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
         <input type="button" id="twitchClipButton" value="Clip Stream 🎬" onclick="createTwitchClip()" style="display: none; margin-left: 10px; background-color: #ffaa00; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+        <input type="button" id="twitchAuthButton" value="Authorize Twitch 🔑" onclick="authorizeTwitch()" style="display: none; margin-left: 10px; background-color: #6441a5; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
         <br>
     </div>
+
+    <script>
+        function authorizeTwitch() {
+            fetch('/api/twitch/auth/url')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.url) {
+                        const width = 500;
+                        const height = 700;
+                        const left = (screen.width - width) / 2;
+                        const top = (screen.height - height) / 2;
+                        window.open(data.url, 'Twitch Auth', `width=${width},height=${height},top=${top},left=${left}`);
+                    } else {
+                        alert('Error getting authorization URL: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to start auth', err);
+                    alert('Network error connecting to backend.');
+                });
+        }
+    </script>
 
 
     
@@ -284,8 +307,23 @@
     <table class="splitchattable">
         <tr>
             <td>
-                <div class="chatcontainer">
-                    <h3 class="containerheader">Chats</h3>
+                <div style="position: relative; height: 60vh; display: flex; flex-direction: column; background: #23243a; border-radius: 12px; box-shadow: 0 2px 16px #0006; margin: 0 0 16px 0; overflow: hidden;">
+                    <h3 class="containerheader" style="background: #1a1a1a; margin: 0; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>Chats</span>
+                        <span id="showPinnedBtn" style="display: none; cursor: pointer; font-size: 12px; font-weight: normal; color: #ffaa00; background: #333; padding: 2px 8px; border-radius: 4px;" onclick="showPinnedMessage()">📌 Show Pin</span>
+                    </h3>
+                    <div id="pinnedMessageContainer" style="display: none; padding: 10px; border-bottom: 1px solid #444; background: #2a2a2a; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 100; transition: all 0.3s ease-out; overflow: hidden;">
+                        <div style="font-size: 12px; color: #ffaa00; font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>📌 Pinned Message</span>
+                            <div style="display: flex; gap: 12px;">
+                                <span style="cursor: pointer; color: #aaa;" onclick="hidePinnedMessage()" title="Hide locally">👁️‍🗨️ Hide</span>
+                                <span style="cursor: pointer; color: #aaa;" onclick="unpinMessage()" title="Unpin on Twitch (Mod/Broadcaster)">✕ Unpin</span>
+                            </div>
+                        </div>
+                        <div id="pinnedMessageContent" style="max-height: 100px; overflow-y: auto; font-size: 0.9em; transition: opacity 0.3s ease-out;"></div>
+                    </div>
+                    <div class="chatcontainer" style="flex: 1; overflow-y: auto; height: auto; margin: 0; border-radius: 0; box-shadow: none; background: transparent;">
+                    </div>
                 </div>
                 <!-- Chat Input Box -->
                 <div id="chatInputContainer" style="display: none; background: #2a2a2a; padding: 10px; border-top: 1px solid #444; position: relative; flex-direction: column;">
@@ -384,16 +422,24 @@ function copyOverlayUrl() {
 
 </script>
     <div id="twitchContextMenu" class="context-menu" style="display: none;">
-        <div class="context-menu-header" id="contextMenuHeader">Username</div>
+        <div class="context-menu-header" id="contextMenuHeader" style="display: flex; align-items: center; gap: 10px; text-align: left; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 5px;">
+            <img id="contextMenuAvatar" src="https://static-cdn.jtvnw.net/jtv_user_pictures/xqc-profile_image-9298dca608632101-300x300.jpeg" style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid #9146FF; object-fit: cover;">
+            <div style="display: flex; flex-direction: column;">
+                <span id="contextMenuUsername" style="font-weight: bold; font-size: 1.1em; color: #fff;">Username</span>
+                <span id="contextMenuFollowDate" style="font-size: 0.85em; color: #ccc;">🤍 Loading...</span>
+                <span id="contextMenuSubStatus" style="font-size: 0.85em; color: #ccc; display: none;">⭐ Loading...</span>
+            </div>
+        </div>
         <div class="context-menu-item" onclick="prepareReply()">Reply to Message</div>
-        <div class="context-menu-item" onclick="moderateTwitch('shoutout')">Shoutout</div>
-        <div class="context-menu-item" id="vipContextMenuItem" onclick="moderateTwitch('vip')">Give VIP</div>
-        <div class="context-menu-item" onclick="moderateTwitch('warning')">Issue Warning</div>
-        <div style="border-top: 1px solid #444; margin: 5px 0;"></div>
-        <div class="context-menu-item" onclick="moderateTwitch('timeout', 60)" style="color: #ffaa00;">Timeout (1m)</div>
-        <div class="context-menu-item" onclick="moderateTwitch('timeout', 600)" style="color: #ffaa00;">Timeout (10m)</div>
-        <div class="context-menu-item" onclick="moderateTwitch('timeout', 3600)" style="color: #ffaa00;">Timeout (1h)</div>
-        <div style="padding: 5px 10px; display: flex; gap: 5px;">
+        <div class="context-menu-item mod-only-item" onclick="pinCurrentMessage()" style="color: #ffaa00;">Pin Message</div>
+        <div class="context-menu-item mod-only-item" onclick="moderateTwitch('shoutout')">Shoutout</div>
+        <div class="context-menu-item mod-only-item" id="vipContextMenuItem" onclick="moderateTwitch('vip')">Give VIP</div>
+        <div class="context-menu-item mod-only-item" onclick="moderateTwitch('warning')">Issue Warning</div>
+        <div class="mod-only-item" style="border-top: 1px solid #444; margin: 5px 0;"></div>
+        <div class="context-menu-item mod-only-item" onclick="moderateTwitch('timeout', 60)" style="color: #ffaa00;">Timeout (1m)</div>
+        <div class="context-menu-item mod-only-item" onclick="moderateTwitch('timeout', 600)" style="color: #ffaa00;">Timeout (10m)</div>
+        <div class="context-menu-item mod-only-item" onclick="moderateTwitch('timeout', 3600)" style="color: #ffaa00;">Timeout (1h)</div>
+        <div class="mod-only-item" style="padding: 5px 10px; display: flex; gap: 5px;">
             <input type="number" id="customTimeoutDuration" placeholder="Time" style="flex: 1; padding: 5px; border-radius: 4px; border: 1px solid #ffaa00; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; box-sizing: border-box; outline: none; width: 60px;" onclick="event.stopPropagation();">
             <select id="customTimeoutUnit" style="padding: 5px; border-radius: 4px; border: 1px solid #ffaa00; background: #1c1e29; color: #e3e5eb; font-size: 0.9em; outline: none;" onclick="event.stopPropagation();">
                 <option value="1">Secs</option>
@@ -403,8 +449,8 @@ function copyOverlayUrl() {
             </select>
             <button onclick="moderateTwitch('timeout', 'custom')" style="background: #ffaa00; color: #111; border: none; border-radius: 4px; padding: 0 10px; cursor: pointer; font-weight: bold; font-size: 0.9em;">Go</button>
         </div>
-        <div class="context-menu-item" onclick="moderateTwitch('delete')" style="color: #ffaa00;">Delete Message</div>
-        <div class="context-menu-item" onclick="moderateTwitch('ban')" style="color: #ff5555; border-top: 1px solid #444; margin-top: 5px; padding-top: 5px;">Ban User</div>
+        <div class="context-menu-item mod-only-item" onclick="moderateTwitch('delete')" style="color: #ffaa00;">Delete Message</div>
+        <div class="context-menu-item mod-only-item" onclick="moderateTwitch('ban')" style="color: #ff5555; border-top: 1px solid #444; margin-top: 5px; padding-top: 5px;">Ban User</div>
     </div>
 
     <!-- Banned/Timed-out Users Modal -->
