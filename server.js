@@ -948,6 +948,18 @@ app.post('/api/twitch/auth', (req, res) => {
     res.json({ success: true });
 });
 
+app.post('/api/twitch/auth/logout', (req, res) => {
+    process.env.TWITCH_ACCESS_TOKEN = '';
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        let envContent = fs.readFileSync(envPath, 'utf8');
+        envContent = envContent.replace(/TWITCH_ACCESS_TOKEN=.*/g, 'TWITCH_ACCESS_TOKEN=');
+        fs.writeFileSync(envPath, envContent);
+    }
+    global.twitchModeratorId = null;
+    res.json({ success: true });
+});
+
 // TWITCH EMOTES ENDPOINT
 // TWITCH BADGES ENDPOINT
 app.get('/api/twitch/badges/:broadcasterId', async (req, res) => {

@@ -690,12 +690,14 @@ $(document).ready(() => {
                     if (data.authorized) {
                         window.authorizedTwitchUser = data.username;
                         $('#twitchAuthButton').hide();
+                        $('#twitchUnauthButton').show();
                         // If we connected before auth, our roomId is null. Reconnect to fetch it properly!
                         if (!window.currentTwitchRoomId && typeof currentTwitchChannelName !== 'undefined' && currentTwitchChannelName) {
                             window.connection.socket.emit('setTwitchChannel', currentTwitchChannelName);
                         }
                     } else {
                         $('#twitchAuthButton').show();
+                        $('#twitchUnauthButton').hide();
                     }
                 })
                 .catch(err => console.error('Failed to check auth status', err));
