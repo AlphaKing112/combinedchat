@@ -11,6 +11,7 @@ class KickChatFallback {
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 5000;
         this.pollingInterval = null;
+        this.reconnectTimeout = null;
         this.lastMessageId = null;
     }
 
@@ -304,7 +305,7 @@ class KickChatFallback {
             this.reconnectAttempts++;
             console.log(`[KickFallback] Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${this.reconnectDelay}ms`);
             
-            setTimeout(() => {
+            this.reconnectTimeout = setTimeout(() => {
                 this.connect().catch(error => {
                     console.error(`[KickFallback] Reconnect failed:`, error.message);
                 });
@@ -315,6 +316,10 @@ class KickChatFallback {
     }
 
     disconnect() {
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
         if (this.ws) {
             this.ws.close();
             this.ws = null;

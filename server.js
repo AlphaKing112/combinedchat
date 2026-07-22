@@ -9,37 +9,87 @@ const { createServer } = require('http');
 const fs = require('fs');
 const path = require('path');
 // === Twitch Avatar Fetching ===
-const twitchAvatarCache = {};
+const twitchAvatarCache = new Map();
+const pendingAvatarRequests = new Map();
+
 async function fetchTwitchAvatar(username) {
     if (!username) return 'https://static-cdn.jtvnw.net/user-default-pictures-uv/41780b5a-def8-11e9-94d9-784f43822e80-profile_image-70x70.png';
     username = username.toLowerCase();
-    if (twitchAvatarCache[username]) {
-        return twitchAvatarCache[username];
+    
+    if (twitchAvatarCache.has(username)) {
+        return twitchAvatarCache.get(username);
     }
     
-    try {
-        const https = require('https');
-        const url = await new Promise((resolve, reject) => {
-            const req = https.get(`https://decapi.me/twitch/avatar/${username}`, (res) => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => resolve(data.trim()));
+    if (pendingAvatarRequests.has(username)) {
+        return pendingAvatarRequests.get(username);
+    }
+
+    const fetchPromise = (async () => {
+        try {
+            const https = require('https');
+            const url = await new Promise((resolve, reject) => {
+                const req = https.get(`https://decapi.me/twitch/avatar/${username}`, (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => resolve(data.trim()));
+                });
+                req.on('error', reject);
+                req.setTimeout(3000, () => { req.destroy(); resolve(null); });
             });
-            req.on('error', reject);
-            req.setTimeout(3000, () => { req.abort(); resolve(null); });
-        });
-        
-        if (url && url.startsWith('http')) {
-            twitchAvatarCache[username] = url;
-            return url;
+            
+            if (url && url.startsWith('http')) {
+                return url;
+            }
+        } catch (e) {
+            console.error(`[Twitch Avatar Error] for ${username}:`, e.message);
         }
-    } catch (e) {
-        console.error(`[Twitch Avatar Error] for ${username}:`, e.message);
+        
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`;
+    })();
+
+    pendingAvatarRequests.set(username, fetchPromise);
+
+    const result = await fetchPromise;
+    pendingAvatarRequests.delete(username);
+
+    // Limit cache size to 2000 entries to prevent memory leaks over long streams
+    if (twitchAvatarCache.size >= 2000) {
+        const firstKey = twitchAvatarCache.keys().next().value;
+        twitchAvatarCache.delete(firstKey);
     }
-    
-    const fallback = `https://ui-avatars.com/api/?name=${username}&background=random`;
-    twitchAvatarCache[username] = fallback;
-    return fallback;
+    twitchAvatarCache.set(username, result);
+
+    return result;
+}
+
+// === Kick Subscriber Badges Fetching ===
+const kickSubBadgeCache = new Map();
+async function fetchKickChannelSubBadges(channelSlug) {
+    if (!channelSlug) return [];
+    const lower = channelSlug.toLowerCase();
+    if (kickSubBadgeCache.has(lower)) {
+        return kickSubBadgeCache.get(lower);
+    }
+    try {
+        const res = await axios.get(`https://kick.com/api/v1/channels/${channelSlug}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/json'
+            },
+            timeout: 5000
+        });
+        const data = res.data;
+        const rawBadges = data.subscriber_badges || data.subscriberBadges || data.badges || [];
+        const parsed = rawBadges.map(b => ({
+            months: b.months || b.count || 1,
+            url: b.badge_image?.src || b.badge_image?.srcset || b.url || b.badge_url || b.src || b.image_url
+        })).filter(b => b.url).sort((a, b) => a.months - b.months);
+        
+        kickSubBadgeCache.set(lower, parsed);
+        return parsed;
+    } catch (e) {
+        return [];
+    }
 }
 
 require('socket.io');
@@ -429,7 +479,28 @@ io.on('connection', (socket) => {
                     badges = msg.sender.badges;
                 }
                 
-                // We rely entirely on the badges provided by Kick in msg.sender.badges.
+                // Attach custom sub badge image URL if available
+                const channelSubBadges = kickSubBadgeCache.get(channelSlug.toLowerCase()) || [];
+                badges = badges.map(b => {
+                    if ((b.type === 'subscriber' || b.name === 'subscriber') && (!b.icon_url && !b.url && !b.badge_url)) {
+                        const months = b.count || b.months || 1;
+                        let matched = null;
+                        for (const cb of channelSubBadges) {
+                            if (cb.months <= months) {
+                                matched = cb;
+                            }
+                        }
+                        if (!matched && channelSubBadges.length > 0) matched = channelSubBadges[0];
+                        if (matched && matched.url) {
+                            return {
+                                ...b,
+                                icon_url: matched.url,
+                                badge_url: matched.url
+                            };
+                        }
+                    }
+                    return b;
+                });
                 
                 socket.emit('kickChat', {
                     sender: {
@@ -891,11 +962,46 @@ app.post('/api/twitch/pins', async (req, res) => {
     }
 });
 
+let twitchAppAccessToken = null;
+let twitchAppAccessTokenExpiry = 0;
+
+async function getTwitchAuthHeaders() {
+    if (!process.env.TWITCH_CLIENT_ID) return null;
+    
+    // Check if process.env.TWITCH_ACCESS_TOKEN exists and is set
+    let token = process.env.TWITCH_ACCESS_TOKEN;
+
+    // If TWITCH_CLIENT_SECRET is available and token is missing or we want App Access Token:
+    if (!token && process.env.TWITCH_CLIENT_SECRET) {
+        if (twitchAppAccessToken && Date.now() < twitchAppAccessTokenExpiry) {
+            token = twitchAppAccessToken;
+        } else {
+            try {
+                const tokenRes = await axios.post(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`);
+                if (tokenRes.data && tokenRes.data.access_token) {
+                    twitchAppAccessToken = tokenRes.data.access_token;
+                    twitchAppAccessTokenExpiry = Date.now() + ((tokenRes.data.expires_in - 60) * 1000);
+                    token = twitchAppAccessToken;
+                }
+            } catch (e) {
+                console.error('[Twitch] Failed to generate App Access Token:', e.message);
+            }
+        }
+    }
+
+    if (!token) return null;
+
+    return {
+        'Client-ID': process.env.TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${token}`
+    };
+}
+
 app.get('/api/twitch/auth/url', (req, res) => {
     if (!process.env.TWITCH_CLIENT_ID) {
         return res.status(400).json({ error: 'TWITCH_CLIENT_ID not configured in .env' });
     }
-    const scopes = 'moderator:manage:chat_messages user:bot channel:bot user:read:email chat:read chat:edit user:write:chat channel:moderate moderation:read channel:manage:moderators moderator:read:chatters channel:manage:broadcast user:edit:broadcast moderator:read:followers';
+    const scopes = 'moderator:manage:chat_messages user:bot channel:bot user:read:email chat:read chat:edit user:write:chat channel:moderate moderation:read channel:manage:moderators moderator:read:chatters channel:manage:broadcast user:edit:broadcast moderator:read:followers channel:read:ads';
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers.host;
     const redirectUri = `${protocol}://${host}/twitch-callback.html`;
@@ -960,64 +1066,70 @@ app.post('/api/twitch/auth/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// TWITCH EMOTES ENDPOINT
 // TWITCH BADGES ENDPOINT
 app.get('/api/twitch/badges/:broadcasterId', async (req, res) => {
     const { broadcasterId } = req.params;
     
-    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
-        return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
+    if (!broadcasterId || broadcasterId === 'null' || broadcasterId === 'undefined') {
+        return res.status(400).json({ error: 'Invalid broadcasterId', channelBadges: [], globalBadges: [] });
+    }
+
+    const headers = await getTwitchAuthHeaders();
+    if (!headers) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured', channelBadges: [], globalBadges: [] });
+    }
+
+    let channelBadges = [];
+    let globalBadges = [];
+
+    try {
+        const channelBadgesRes = await axios.get(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${broadcasterId}`, { headers });
+        channelBadges = channelBadgesRes.data?.data || [];
+    } catch (e) {
+        console.warn('[Twitch] Channel badges fetch notice:', e.response?.data?.message || e.message);
     }
 
     try {
-        const headers = {
-            'Client-ID': process.env.TWITCH_CLIENT_ID,
-            'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
-        };
-
-        // Fetch channel badges
-        const channelBadgesRes = await axios.get(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${broadcasterId}`, { headers });
-        
-        // Fetch global badges
         const globalBadgesRes = await axios.get('https://api.twitch.tv/helix/chat/badges/global', { headers });
-
-        res.json({
-            channelBadges: channelBadgesRes.data?.data || [],
-            globalBadges: globalBadgesRes.data?.data || []
-        });
-    } catch (error) {
-        console.error('[Twitch] Error fetching badges:', error.response?.data || error.message);
-        res.status(500).json({ error: 'Failed to fetch Twitch badges' });
+        globalBadges = globalBadgesRes.data?.data || [];
+    } catch (e) {
+        console.warn('[Twitch] Global badges fetch notice:', e.response?.data?.message || e.message);
     }
+
+    res.json({ channelBadges, globalBadges });
 });
 
+// TWITCH EMOTES ENDPOINT
 app.get('/api/twitch/emotes/:broadcasterId', async (req, res) => {
     const { broadcasterId } = req.params;
     
-    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
-        return res.status(400).json({ error: 'Twitch API credentials not configured in .env' });
+    if (!broadcasterId || broadcasterId === 'null' || broadcasterId === 'undefined') {
+        return res.status(400).json({ error: 'Invalid broadcasterId', channelEmotes: [], globalEmotes: [] });
+    }
+
+    const headers = await getTwitchAuthHeaders();
+    if (!headers) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured', channelEmotes: [], globalEmotes: [] });
+    }
+
+    let channelEmotes = [];
+    let globalEmotes = [];
+
+    try {
+        const channelEmotesRes = await axios.get(`https://api.twitch.tv/helix/chat/emotes?broadcaster_id=${broadcasterId}`, { headers });
+        channelEmotes = channelEmotesRes.data?.data || [];
+    } catch (e) {
+        console.warn('[Twitch] Channel emotes fetch notice:', e.response?.data?.message || e.message);
     }
 
     try {
-        const headers = {
-            'Client-ID': process.env.TWITCH_CLIENT_ID,
-            'Authorization': `Bearer ${process.env.TWITCH_ACCESS_TOKEN}`
-        };
-
-        // Fetch channel emotes
-        const channelEmotesRes = await axios.get(`https://api.twitch.tv/helix/chat/emotes?broadcaster_id=${broadcasterId}`, { headers });
-        
-        // Fetch global emotes
         const globalEmotesRes = await axios.get('https://api.twitch.tv/helix/chat/emotes/global', { headers });
-
-        res.json({
-            channelEmotes: channelEmotesRes.data?.data || [],
-            globalEmotes: globalEmotesRes.data?.data || []
-        });
-    } catch (error) {
-        console.error('[Twitch] Emotes Fetch Error:', error.response?.data || error.message);
-        return res.status(500).json({ error: error.response?.data?.message || error.message });
+        globalEmotes = globalEmotesRes.data?.data || [];
+    } catch (e) {
+        console.warn('[Twitch] Global emotes fetch notice:', e.response?.data?.message || e.message);
     }
+
+    res.json({ channelEmotes, globalEmotes });
 });
 
 // TWITCH CLIP ENDPOINT
@@ -1167,12 +1279,12 @@ process.on('unhandledRejection', (reason, promise) => {
 app.get('/api/twitch/ads', async (req, res) => {
     const { broadcasterId } = req.query;
     
-    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
-        return res.status(400).json({ error: 'Twitch API credentials not configured' });
+    if (!broadcasterId || broadcasterId === 'null' || broadcasterId === 'undefined') {
+        return res.status(400).json({ error: 'Missing or invalid broadcasterId', unauthenticated: false });
     }
-    
-    if (!broadcasterId) {
-        return res.status(400).json({ error: 'Missing broadcasterId' });
+
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_ACCESS_TOKEN) {
+        return res.status(400).json({ error: 'Twitch API credentials not configured', unauthenticated: true });
     }
 
     try {
@@ -1184,7 +1296,14 @@ app.get('/api/twitch/ads', async (req, res) => {
         });
         return res.json(response.data);
     } catch (error) {
-        return res.status(500).json({ error: error.response?.data?.message || error.message });
+        const statusCode = error.response?.status || 500;
+        const errorMessage = error.response?.data?.message || error.message;
+        const isAuthError = statusCode === 401 || statusCode === 403;
+        
+        return res.status(isAuthError ? 401 : 400).json({ 
+            error: errorMessage, 
+            unauthenticated: isAuthError 
+        });
     }
 });
 
